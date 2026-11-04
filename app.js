@@ -1,8 +1,8 @@
 import OBR, { buildShape } from "https://cdn.jsdelivr.net/npm/@owlbear-rodeo/sdk@3.1.0/+esm";
-import { CONDICOES, ESTIGMAS, BESTIARIO } from "./dados.js";
-import { EFEITOS, AMBIENTES, tocar as tocarLocal, setVolume as setVolLocal } from "./sons.js";
-import { gerarEquipe, outroMembro, outraHistoriaEquipe, equipeTexto, membroTexto, NEXS, TEMAS } from "./equipe.js";
-import { gerarNpc, VDS, TIPOS, PAPEIS, outrasHabilidades, outraHistoria, outroNome, loreTexto } from "./gerador.js";
+import { CONDICOES, ESTIGMAS, BESTIARIO } from "./dados.js?v=1.3.1";
+import { EFEITOS, AMBIENTES, tocar as tocarLocal, setVolume as setVolLocal } from "./sons.js?v=1.3.1";
+import { gerarEquipe, outroMembro, outraHistoriaEquipe, equipeTexto, membroTexto, NEXS, TEMAS } from "./equipe.js?v=1.3.1";
+import { gerarNpc, VDS, TIPOS, PAPEIS, outrasHabilidades, outraHistoria, outroNome, loreTexto } from "./gerador.js?v=1.3.1";
 
 /* =========================================================
    Escudo do Mestre — Hexatombe (Owlbear Rodeo)
