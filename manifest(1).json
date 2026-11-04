@@ -1,0 +1,15 @@
+{
+  "name": "Escudo do Mestre — Hexatombe",
+  "version": "1.0.1",
+  "manifest_version": 1,
+  "action": {
+    "title": "Escudo do Mestre (só o mestre)",
+    "icon": "https://pebarrosdenashor.github.io/mestre-hexatombe/icon.svg",
+    "popover": "https://pebarrosdenashor.github.io/mestre-hexatombe/index.html",
+    "height": 760,
+    "width": 460
+  },
+  "background_url": "https://pebarrosdenashor.github.io/mestre-hexatombe/background.html",
+  "author": "pebarrosdenashor",
+  "description": "Ferramentas do mestre para o Hexatombe: painel dos jogadores, rolagens secretas e combate."
+}
