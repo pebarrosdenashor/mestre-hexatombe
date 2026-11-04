@@ -6,7 +6,7 @@
    Hexatombe: PV, PE, Defesa, perícias, ataques, habilidades
    e uma pequena história). Números aproximados, para improvisar.
    ========================================================= */
-import { pick, sortear, chance, nomePessoa, DANO_HAB, CURA } from "./gerador.js?v=1.3.1";
+import { pick, sortear, chance, nomePessoa, DANO_HAB, CURA } from "./gerador.js?v=1.4.0";
 
 export const NEXS = [5, 10, 20, 35, 50, 65, 80, 99];
 const VD_DO_NEX = { 5: 10, 10: 10, 20: 20, 35: 40, 50: 60, 65: 80, 80: 100, 99: 120 };
@@ -15,7 +15,14 @@ const DT_DO_NEX = { 5: 12, 10: 13, 20: 14, 35: 16, 50: 18, 65: 20, 80: 22, 99: 2
 export const TEMAS = [
   ["sorteio", "🎲 Qualquer um"], ["ordem", "Ex-agentes da Ordem"], ["cultistas", "Cultistas dissidentes"], ["familia", "Família"],
   ["mercenarios", "Mercenários"], ["circo", "Trupe do circo"], ["civis", "Civis que caíram no ritual"], ["policia", "Força policial"],
+  ["academicos", "Pesquisadores da universidade"], ["veteranos", "Sobreviventes de outro Hexatombe"], ["religiosos", "Grupo da igreja"], ["cacafantasmas", "Canal de caça-fantasmas"],
 ];
+export const COMPOSICOES = [["equilibrada", "Equilibrada"], ["combate", "Mais combate"], ["ocultismo", "Mais ocultismo"], ["furtiva", "Furtiva e esperta"]];
+const PREF = {
+  combate: ["atirador", "brutamontes", "atirador", "brutamontes", "batedor"],
+  ocultismo: ["ritualista", "vidente", "ritualista", "medico"],
+  furtiva: ["batedor", "trapaceiro", "tecnico", "batedor"],
+};
 
 /* ---------- Temas ---------- */
 const T = {
@@ -38,7 +45,7 @@ const T = {
     lema: ["“Sangue do nosso sangue.”", "“Família é quem volta para casa.”", "“O sobrenome é o que sobra.”"],
     conceito: ["Uma família inteira que acordou dentro do circo depois de um almoço de domingo.", "Parentes que herdaram uma dívida com o Outro Lado e vieram pagá-la.", "Irmãos e primos que vieram buscar alguém da família que sumiu ali anos atrás."],
     desejo: ["trazer de volta a mãe que morreu no incêndio do circo", "quebrar a maldição que mata um deles a cada geração", "que a família inteira saia viva, nem que custe os outros"],
-    funcoes: ["lider", "brutamontes", "medico", "batedor", "trapaceiro", "vidente"],
+    funcoes: ["lider", "brutamontes", "medico", "batedor", "trapaceiro", "vidente", "intendente"],
     sobrenome: true,
   },
   mercenarios: {
@@ -46,7 +53,7 @@ const T = {
     lema: ["“Pagou, levou.”", "“Ninguém é leal a um morto.”", "“Primeiro o serviço, depois a reza.”"],
     conceito: ["Mercenários contratados por alguém de fora para trazer um objeto do circo.", "Soldados de aluguel que acham que é só mais um trabalho estranho.", "Um grupo de segurança privada que foi pago adiantado e não sabe por quem."],
     desejo: ["dinheiro suficiente para nunca mais trabalhar", "o nome de quem os contratou", "sair do contrato com quem os contratou"],
-    funcoes: ["lider", "atirador", "atirador", "brutamontes", "tecnico", "batedor"],
+    funcoes: ["lider", "atirador", "atirador", "brutamontes", "tecnico", "batedor", "intendente"],
   },
   circo: {
     nomes: ["Trupe Itinerante Estrela", "Os Últimos do Picadeiro", "Companhia Lona Azul", "Os Artistas do Trem 7"],
@@ -71,7 +78,56 @@ const T = {
     desejo: ["que os desaparecidos voltem para as famílias", "apagar os próprios crimes", "a promoção que nunca veio, e um pouco mais"],
     funcoes: ["lider", "atirador", "atirador", "batedor", "tecnico", "medico"],
   },
+  academicos: {
+    nomes: ["Grupo de Pesquisa Limiar", "Laboratório 404", "Núcleo de Estudos do Insólito", "Os Orientandos"],
+    lema: ["“Tudo tem explicação. Quase tudo.”", "“Publicar ou perecer.”", "“A hipótese ainda está de pé.”"],
+    conceito: ["Professores e estudantes que pesquisavam o folclore do circo e acharam um texto que não deviam ter lido.", "Uma equipe de pesquisa financiada por alguém que nunca apareceu nas reuniões.", "Acadêmicos que acham que o Hexatombe é um fenômeno a ser medido."],
+    desejo: ["entender o Outro Lado, de verdade, uma vez", "trazer de volta o orientador que sumiu na expedição", "a prova definitiva para mostrar ao mundo"],
+    funcoes: ["lider", "ritualista", "vidente", "tecnico", "medico", "intendente"],
+  },
+  veteranos: {
+    nomes: ["Os Que Voltaram", "Sobreviventes do Sétimo Sino", "Os Marcados", "Turma da Segunda Vez"],
+    lema: ["“Já vimos isso antes. Não acabou bem.”", "“Desta vez, nós ganhamos.”", "“O ritual lembra de nós.”"],
+    conceito: ["Pessoas que sobreviveram a um Hexatombe anterior e foram puxadas de volta.", "Veteranos de outro ritual que conhecem os truques e não confiam em ninguém.", "Sobreviventes que pediram um desejo da última vez e agora pagam o preço."],
+    desejo: ["desfazer o desejo que pediram da última vez", "acabar com o Hexatombe para sempre", "trazer de volta quem sacrificaram da outra vez"],
+    funcoes: ["lider", "brutamontes", "vidente", "batedor", "intendente", "atirador"],
+    veteranos: true,
+  },
+  religiosos: {
+    nomes: ["Comunidade Luz da Estrada", "Missão São Jorge", "Irmandade da Vigília", "Grupo de Oração da Capela"],
+    lema: ["“Deus está vendo.”", "“Nenhum mal nos alcança.”", "“Orai e vigiai.”"],
+    conceito: ["Fiéis que vieram exorcizar o circo e não sabiam com o que estavam lidando.", "Um grupo de oração que acredita que o ritual é uma provação divina.", "Uma missão religiosa que esconde um padre que já foi do culto."],
+    desejo: ["a salvação de todos, até dos inimigos", "um milagre para a cidade", "que o líder seja perdoado por algo terrível"],
+    funcoes: ["lider", "medico", "vidente", "intendente", "brutamontes", "trapaceiro"],
+    fracos: true,
+  },
+  cacafantasmas: {
+    nomes: ["Canal Além do Véu", "Os Caçadores da Meia-Noite", "Live Paranormal BR", "Equipe Câmera Escura"],
+    lema: ["“Deixa o like e não esquece de rezar.”", "“Se não gravou, não aconteceu.”", "“Hoje a gente bate um milhão.”"],
+    conceito: ["Criadores de conteúdo que fizeram uma live no circo abandonado na noite errada.", "Um canal de caça-fantasmas que sempre forjou tudo, até agora.", "Influenciadores que receberam um convite misterioso com promessa de fama."],
+    desejo: ["fama, a qualquer custo", "provar que nunca mentiram nos vídeos", "sair daqui com a filmagem e a vida"],
+    funcoes: ["lider", "tecnico", "trapaceiro", "batedor", "vidente", "intendente"],
+    fracos: true,
+  },
 };
+const BASES = [
+  "no vagão-restaurante do trem parado", "no camarim dos palhaços, com a porta barricada", "embaixo da arquibancada", "na casa de máquinas da roda-gigante",
+  "na bilheteria, com vista para a entrada", "no galpão das lonas, entre pilhas de tecido", "na jaula vazia dos leões, trancada por dentro", "na capela no fim da estrada",
+  "no topo do mastro principal", "num porão que só eles conhecem",
+];
+const POSTURA = [
+  ["Hostil", "atacam os agentes se os virem sozinhos"], ["Rival", "competem pelos mesmos recursos, mas evitam briga aberta"],
+  ["Neutra", "não procuram briga, nem ajuda"], ["Interessada", "querem uma aliança, pelo menos por enquanto"],
+  ["Desesperada", "pedem ajuda logo no primeiro encontro"],
+];
+const OFERECEM = ["comida para um dia", "água para dois dias", "um mapa de parte do circo", "o horário em que as criaturas aparecem", "um componente ritualístico", "proteção por uma noite na base deles", "o segredo de outra equipe", "remédios"];
+const QUEREM = ["comida", "água", "uma arma", "o nome do líder do culto", "que os agentes votem com eles no sacrifício", "um item paranormal", "remédio para um ferido", "um lugar na base dos agentes"];
+const FASES = {
+  inicio: ["montam a base e mapeiam a área ao redor", "saem atrás de comida antes de todo mundo", "procuram as outras equipes para ver quem é fraco", "ficam escondidos e observam", "tentam achar a saída da lona"],
+  fome: ["racionam e o líder come por último", "roubam a base mais próxima à noite", "brigam entre si e alguém sai da equipe", "aceitam qualquer acordo com quem tiver comida", "comem algo que não deviam e um deles muda"],
+  sacrificio: ["sacrificam quem estiver mais fraco", "tentam convencer outra equipe a sacrificar um dos seus", "se recusam a sacrificar e enfrentam o ritual", "sorteiam, e o líder trapaceia", "o líder se oferece, ou finge que vai"],
+};
+const REACAO = ["Mandam o trapaceiro conversar enquanto os outros cercam.", "Apontam armas e mandam os agentes ir embora.", "Fingem ser civis perdidos.", "Oferecem comida para ganhar confiança.", "Atacam primeiro, sem conversa.", "Mandam o mais simpático na frente e os outros ficam escondidos."];
 const ESTRATEGIAS = [
   "Se esconder, montar uma base forte e deixar as outras equipes se matarem.",
   "Caçar a equipe mais fraca logo no primeiro dia.",
@@ -89,8 +145,12 @@ const SEGREDOS = [
   "eles sabem onde fica uma área com comida e água sobrando",
   "um deles é parente de alguém de outra equipe",
   "um deles já está marcado pelo Outro Lado e vai se transformar se ficar morrendo",
+  "o líder já pediu um desejo antes, e o desejo deu errado",
+  "eles têm um mapa do circo, mas metade dele é falsa",
+  "um deles fala com uma das assombrações do circo todas as noites",
+  "estão escondendo um ferido grave de uma briga com outra equipe",
 ];
-const FRAQUEZAS = ["pouca comida", "brigam entre si quando estão com fome", "o líder não aguenta ver ninguém sofrer", "não sabem nada de ocultismo", "um deles está ferido desde antes de começar", "confiam demais em quem oferece ajuda"];
+const FRAQUEZAS = ["pouca comida", "brigam entre si quando estão com fome", "o líder não aguenta ver ninguém sofrer", "não sabem nada de ocultismo", "um deles está ferido desde antes de começar", "confiam demais em quem oferece ajuda", "têm medo do escuro e gastam muita luz", "dependem de um só integrante para tudo", "fazem barulho demais à noite", "acreditam em tudo o que o vidente diz"];
 
 /* ---------- Funções na equipe ---------- */
 const F = {
@@ -110,9 +170,15 @@ const F = {
     hab: ["Lábia: +1 dado em Enganação e Diplomacia na troca de informações.", "Mão leve: pode roubar um item de alguém adjacente (Crime contra Percepção).", "Sempre tem uma saída: uma vez por cena, sai de um combate sem sofrer ataques."] },
   ritualista: { nome: ["Ritualista", "Ritualista"], classe: "Ocultista", per: ["Ocultismo", "Vontade", "Religião", "Intuição"], arma: ["Adaga ritual", "1d4", "corte", "Luta"],
     hab: ["Ritual de {el} (custa PE): {h} de {el} num alvo em alcance médio (Vontade DT {dt} reduz à metade).", "Proteção ({el}): aliados em alcance curto recebem RD 5 contra {el} até o fim da cena (2 PE).", "Componentes guardados: começa o dia com 2 componentes ritualísticos."] },
+  intendente: { nome: ["Intendente", "Intendente"], classe: "Especialista", per: ["Sobrevivência", "Profissão", "Diplomacia", "Percepção"], arma: ["Facão", "1d6", "corte", "Luta"],
+    hab: ["Racionamento: a equipe gasta metade da comida por dia enquanto ele estiver vivo.", "Forrageador: uma vez por dia, acha comida para uma pessoa (Sobrevivência DT {dt}).", "Cozinha de campanha: uma refeição feita por ele recupera {c} PV de quem comer."] },
   vidente: { nome: ["Vidente", "Vidente"], classe: "Ocultista", per: ["Ocultismo", "Intuição", "Percepção", "Investigação"], arma: ["Revólver", "2d6", "balístico", "Pontaria"],
     hab: ["Pressentimento (reação, 2 PE): impõe −1 dado num ataque contra um aliado.", "Ler a área: uma vez por dia, descobre o perigo maior de uma área antes de entrar.", "Olhos do Outro Lado: vê criaturas invisíveis ou camufladas por {el}."] },
 };
+const APARENCIA = ["casaco grande demais e botas de borracha", "cabelo raspado e uma cicatriz na nuca", "óculos com uma lente rachada", "roupa de festa rasgada", "bandana vermelha e mãos calejadas", "uniforme de trabalho sujo de graxa", "rosário no pescoço e unhas roídas", "tatuagem de uma data no antebraço", "maquiagem borrada de dias", "uma mochila que nunca larga"];
+const FALAS = ["“Ninguém toca na comida sem eu saber.”", "“Eu já disse que isso ia dar errado.”", "“Fica atrás de mim.”", "“Vocês ouviram os sinos?”", "“Confia em mim. Só desta vez.”", "“Se eu morrer, avisa minha mãe.”", "“Não olha pra trás.”", "“Isso é uma péssima ideia. Vamos.”"];
+const CARREGA = ["uma foto da família", "um rádio que só pega estática", "um caderno com nomes riscados", "uma lata de comida guardada para emergência", "uma faca que era do pai", "um isqueiro de prata", "um terço quebrado", "uma chave sem porta", "um componente ritualístico enrolado num pano"];
+const SEGREDO_PESSOAL = ["já matou alguém de outra equipe", "está escondendo comida dos outros", "conhece um dos agentes de antes", "ouve uma voz que promete o desejo só para ele", "está com uma ferida que não para de sangrar", "fez um acordo com o culto", "quer desertar e só espera a hora certa", "sabe quem vai ser sacrificado"];
 const PERSONALIDADE = ["Leal até o fim.", "Desconfia de todos.", "Faz piada quando está com medo.", "Fala pouco e observa muito.", "Não sabe recuar de uma briga.", "Tem medo de tudo, mas nunca mente.", "Reza o tempo todo.", "Pensa friamente antes de agir.", "Acredita que todos vão sair vivos.", "Perde a paciência com facilidade."];
 const MEDOS = ["ficar sozinho no escuro", "palhaços", "morrer esquecido", "ver a família sofrer", "sinos", "perder o controle", "fogo", "lugares fechados", "espelhos"];
 const LEALDADE = [["leal", 5], ["hesitante", 3], ["pode desertar", 2]];
@@ -123,7 +189,7 @@ const ATTR_DE = { Pontaria: "AGI", Luta: "FOR", Atletismo: "FOR", Furtividade: "
 function pesado(lista) { const tot = lista.reduce((s, [, p]) => s + p, 0); let r = Math.random() * tot; for (const [v, p] of lista) { r -= p; if (r <= 0) return v; } return lista[0][0]; }
 const ELEMENTOS = ["Sangue", "Morte", "Conhecimento", "Energia"];
 
-function agente({ funcao, nex, g, sobrenome, fracos, circo }) {
+function agente({ funcao, nex, g, sobrenome, fracos, circo, veteranos }) {
   const f = F[funcao];
   const classe = f.classe || pick(["Combatente", "Especialista", "Ocultista"]);
   const n = Math.max(1, Math.round(nex / 5)); // nível de NEX
@@ -166,6 +232,7 @@ function agente({ funcao, nex, g, sobrenome, fracos, circo }) {
   if (classe === "Ocultista") { hab.push(sub(`Escolhido pelo Outro Lado: conjura rituais de {el} (DT {dt}).`)); extra.push([`Ritual de ${el}`, ctx.h]); }
   if (circo) hab.push(pick(["Artista: +1 dado nos jogos do circo.", "Conhece a lona: não se perde dentro do circo.", "Plateia invisível: uma vez por dia, recupera 1d6 PE com aplausos que ninguém mais ouve."]));
   hab.push(...sortear(f.hab, nex >= 50 ? 2 : 1).map(sub));
+  if (veteranos) hab.push(pick(["Já vi isso antes: +1 dado em Percepção para notar armadilhas e emboscadas.", "Cicatriz do ritual: +5 em Vontade contra efeitos do Hexatombe.", "Sabe ler os sinos: sempre sabe quanto falta para o próximo."]));
   if (nex >= 65) hab.push(pick(["Veterano: uma vez por cena, rola de novo um teste que falhou.", "Instinto de sobrevivência: +5 na Defesa quando estiver com menos da metade dos PV.", `Afinidade com ${el}: +1 dado em testes de Ocultismo envolvendo ${el}.`]));
 
   const nome = sobrenome ? `${nomePessoa(g).split(" ")[0]} ${sobrenome}` : nomePessoa(g);
@@ -175,7 +242,10 @@ function agente({ funcao, nex, g, sobrenome, fracos, circo }) {
     `${funcNome} da equipe. ${pick(PERSONALIDADE)} Tem medo de ${pick(MEDOS)}.`,
     `Desejo pessoal: ${pick(["sair vivo", "vingar alguém que morreu no primeiro dia", "provar que não é um peso morto", "o desejo da equipe, mas por outro motivo", "ficar com o desejo só para si", "proteger o mais novo do grupo"])}.`,
     `Lealdade: ${lealdade}${lealdade === "pode desertar" ? ` (${pick(["se ficar com fome por um dia", "se o líder sacrificar alguém", "se outra equipe oferecer comida e abrigo", "se descobrir o segredo da equipe"])})` : ""}.`,
+    `Aparência: ${pick(APARENCIA)}. Carrega ${pick(CARREGA)}.`,
+    `Fala: ${pick(FALAS)}`,
   ];
+  if (chance(0.5)) historia.push(`Segredo: ${pick(SEGREDO_PESSOAL.filter((x) => lealdade !== "leal" || !/desertar|acordo com o culto/.test(x)))}.`);
   return {
     custom: true, nome, tipo: `${funcNome} · ${classe}`, vd: `NEX ${nex}%`, def: String(def), pv: String(pv), pvAtual: String(pv), pe: String(pe), peAtual: String(pe),
     maq: String(Math.floor(pv / 2)), desl: "9m", attrs: Object.entries(a).map(([k, v]) => `${k} ${v}`).join(" · "),
@@ -184,16 +254,20 @@ function agente({ funcao, nex, g, sobrenome, fracos, circo }) {
   };
 }
 
-export function gerarEquipe({ nex = 35, tam = 4, tema = "sorteio" } = {}) {
+export function gerarEquipe({ nex = 35, tam = 4, tema = "sorteio", comp = "equilibrada" } = {}) {
   if (!NEXS.includes(Number(nex))) nex = 35; nex = Number(nex);
   tam = Math.max(2, Math.min(6, Number(tam) || 4));
   const chave = T[tema] ? tema : pick(Object.keys(T)); const t = T[chave];
   const sobrenome = t.sobrenome ? pick(["Albuquerque", "Bittencourt", "Damasceno", "Galvão", "Mendonça", "Queiroz", "Vasconcelos", "Siqueira", "Prado"]) : "";
   const nome = pick(t.nomes).replace("{S}", sobrenome);
   // o líder sempre, depois as funções do tema, sem repetir enquanto der
-  const fun = ["lider", ...sortear(t.funcoes.filter((x) => x !== "lider"), tam - 1)];
-  while (fun.length < tam) fun.push(pick(t.funcoes));
-  const membros = fun.map((funcao) => agente({ funcao, nex, g: chance(0.5) ? "f" : "m", sobrenome, fracos: !!t.fracos, circo: !!t.circo }));
+  // com uma composição escolhida, metade das vagas segue a preferência
+  const pref = PREF[comp] || [];
+  const nPref = pref.length ? Math.ceil((tam - 1) / 2) : 0;
+  const fun = ["lider", ...sortear(pref, nPref)];
+  for (const f of sortear(t.funcoes.filter((x) => x !== "lider"), tam)) if (fun.length < tam) fun.push(f);
+  while (fun.length < tam) fun.push(pick(t.funcoes.filter((x) => x !== "lider")));
+  const membros = fun.map((funcao) => agente({ funcao, nex, g: chance(0.5) ? "f" : "m", sobrenome, fracos: !!t.fracos, circo: !!t.circo, veteranos: !!t.veteranos }));
   // sem apelidos nem primeiros nomes repetidos na mesma equipe
   const vistos = new Set();
   for (const m of membros) {
@@ -201,15 +275,32 @@ export function gerarEquipe({ nex = 35, tam = 4, tema = "sorteio" } = {}) {
     if (ap && vistos.has(ap)) m.nome = m.nome.replace(/ “[^”]+”/, "");
     if (ap) vistos.add(ap);
   }
-  const eq = { nome, tema: chave, temaNome: (TEMAS.find(([k]) => k === chave) || [, chave])[1], nex, lema: pick(t.lema), conceito: pick(t.conceito), desejo: pick(t.desejo),
-    estrategia: pick(ESTRATEGIAS), segredo: pick(SEGREDOS), fraqueza: pick(FRAQUEZAS), tensoes: [], membros };
-  eq.tensoes = tensoes(membros);
+  const eq = { nome, tema: chave, temaNome: (TEMAS.find(([k]) => k === chave) || [, chave])[1], nex, comp, membros, tensoes: [] };
+  historiaEquipe(eq, t);
   return eq;
+}
+function historiaEquipe(eq, t) {
+  const pos = pick(POSTURA); const tam = eq.membros.length;
+  Object.assign(eq, {
+    lema: pick(t.lema), conceito: pick(t.conceito), desejo: pick(t.desejo), estrategia: pick(ESTRATEGIAS), segredo: pick(SEGREDOS), fraqueza: pick(FRAQUEZAS),
+    base: pick(BASES), postura: `${pos[0]}: ${pos[1]}`, reacao: pick(REACAO),
+    recursos: `Comida para ${Math.max(0, tam + Math.floor(Math.random() * 5) - 2 - (t.fracos ? 1 : 0))} refeições, água para ${1 + Math.floor(Math.random() * 3)} dias${chance(0.4) ? ", 1 componente ritualístico" : ""}${chance(0.3) ? ", um kit médico" : ""}${chance(0.25) ? ", uma arma sobrando" : ""}`,
+    troca: `Oferecem ${pick(OFERECEM)}; querem ${pick(QUEREM)}.`,
+    fases: [`No começo: ${pick(FASES.inicio)}.`, `Quando a comida acaba: ${pick(FASES.fome)}.`, `Na hora do sacrifício: ${pick(FASES.sacrificio)}.`],
+    tensoes: tensoes(eq.membros),
+  });
 }
 function tensoes(ms) {
   if (ms.length < 2) return [];
-  const out = []; const [a, b] = sortear(ms, 2); const p1 = (m) => m.nome.split(" ")[0];
-  out.push(pick([`${p1(a)} e ${p1(b)} se conhecem de antes e não se suportam.`, `${p1(a)} deve a vida a ${p1(b)}.`, `${p1(a)} e ${p1(b)} são um casal, e escondem isso dos outros.`, `${p1(a)} desconfia que ${p1(b)} é um traidor.`, `${p1(a)} e ${p1(b)} são irmãos.`]));
+  const out = []; const p1 = (m) => m.nome.split(" ")[0];
+  const REL = [(a, b) => `${p1(a)} e ${p1(b)} se conhecem de antes e não se suportam.`, (a, b) => `${p1(a)} deve a vida a ${p1(b)}.`, (a, b) => `${p1(a)} e ${p1(b)} são um casal, e escondem isso dos outros.`,
+    (a, b) => `${p1(a)} desconfia que ${p1(b)} está traindo a equipe.`, (a, b) => `${p1(a)} e ${p1(b)} são irmãos.`, (a, b) => `${p1(a)} quer o lugar de ${p1(b)} na equipe.`,
+    (a, b) => `${p1(a)} protege ${p1(b)} acima de qualquer um.`, (a, b) => `${p1(a)} viu ${p1(b)} fazer algo que não deveria e guarda isso para usar depois.`, (a, b) => `${p1(a)} e ${p1(b)} fizeram um pacto: se um cair, o outro segue sozinho.`];
+  const usados = new Set(); const rels = sortear(REL, Math.max(1, Math.floor(ms.length / 2)));
+  for (const r of rels) {
+    const livres = ms.filter((m) => !usados.has(m)); if (livres.length < 2) break;
+    const [a, b] = sortear(livres, 2); usados.add(a); usados.add(b); out.push(r(a, b));
+  }
   const desertor = ms.find((m) => m.lealdade === "pode desertar");
   if (desertor) out.push(`${p1(desertor)} é quem mais pode abandonar a equipe.`);
   return out;
@@ -219,20 +310,22 @@ export function outroMembro(eq, i) {
   const m = eq.membros[i]; if (!m) return eq;
   const t = T[eq.tema] || {};
   const sob = t.sobrenome ? m.nome.split(" ").slice(1).join(" ") : "";
-  eq.membros[i] = agente({ funcao: m.funcao, nex: eq.nex, g: chance(0.5) ? "f" : "m", sobrenome: sob, fracos: !!t.fracos, circo: !!t.circo });
+  eq.membros[i] = agente({ funcao: m.funcao, nex: eq.nex, g: chance(0.5) ? "f" : "m", sobrenome: sob, fracos: !!t.fracos, circo: !!t.circo, veteranos: !!t.veteranos });
   eq.tensoes = tensoes(eq.membros);
   return eq;
 }
 export function outraHistoriaEquipe(eq) {
   const t = T[eq.tema]; if (!t) return eq;
-  Object.assign(eq, { lema: pick(t.lema), conceito: pick(t.conceito), desejo: pick(t.desejo), estrategia: pick(ESTRATEGIAS), segredo: pick(SEGREDOS), fraqueza: pick(FRAQUEZAS), tensoes: tensoes(eq.membros) });
+  historiaEquipe(eq, t);
   return eq;
 }
 export function equipeTexto(eq) {
   return [
     `${eq.nome} — ${eq.temaNome}, NEX ${eq.nex}%`, eq.lema, eq.conceito,
-    `Desejo: ${eq.desejo}.`, `Estratégia: ${eq.estrategia}`, `Segredo: ${eq.segredo}.`, `Ponto fraco: ${eq.fraqueza}.`, ...eq.tensoes,
-  ];
+    `Desejo: ${eq.desejo}.`, `Estratégia: ${eq.estrategia}`, `Segredo: ${eq.segredo}.`, `Ponto fraco: ${eq.fraqueza}.`,
+    eq.base && `Base: ${eq.base}.`, eq.recursos && `Recursos: ${eq.recursos}.`, eq.postura && `Postura com os agentes: ${eq.postura}.`, eq.reacao && `No primeiro encontro: ${eq.reacao}`, eq.troca && `Troca: ${eq.troca}`,
+    ...(eq.fases || []), ...eq.tensoes,
+  ].filter(Boolean);
 }
 export function membroTexto(m) {
   return `${m.nome} — ${m.tipo}, ${m.vd}\nDefesa ${m.def} · PV ${m.pv} · PE ${m.pe} · ${m.attrs}\nPercepção ${m.per} · Iniciativa ${m.ini} · Fort ${m.res.Fortitude} · Ref ${m.res.Reflexos} · Von ${m.res.Vontade}\nPerícias: ${m.pericias.map((p) => `${p[0]} ${p[1]}`).join(", ")}\n${m.atq.map((a) => `${a[0]}: ${a[1]} (${a[2]} ${a[3]})`).join("\n")}\n${m.hab.join("\n")}\n${m.historia.join("\n")}`;

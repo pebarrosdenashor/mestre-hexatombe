@@ -62,3 +62,21 @@ O botão ⤢ abre o escudo em tela grande, com os agentes em duas colunas.
 - **Quem está ouvindo** (aba Cena): mostra, para cada pessoa da sala, se o botão de som dela está 🔊 ouvindo, 🔇 bloqueado (falta um clique) ou ❔ sem resposta (versão antiga da extensão ou botão que não abriu: peça F5). **🔔 Testar som em todos** toca um sino para conferir. **📣 Avisar quem está sem som** mostra um aviso na tela dessas pessoas e reabre o botão delas.
 - O botão de som se reabre sozinho se não der sinal de vida.
 - **Gerador de equipe do Hexatombe** (Combate → Gerador → 👥 Equipe do Hexatombe): escolha o tipo (ex-agentes da Ordem, cultistas, família, mercenários, trupe do circo, civis, polícia), o NEX e quantas pessoas. Sai com nome, lema, desejo, estratégia, segredo, ponto fraco, tensões entre eles e cada agente com PV, PE, Defesa, perícias, ataque, habilidades da função e história (inclusive quem pode desertar). **⛺ Pôr no Hexatombe** coloca a equipe numa equipe do ritual, com os integrantes na aba NPCs e o plano no “Plano secreto do mestre”.
+
+## Novidades da versão 1.4
+O gerador (no fim da aba ⚔ Combate) agora tem três modos: 👤 NPC, 🎭 Encontro e 👥 Equipe.
+
+- **NPC:**
+  - Tipos novos: agente rival / caçador do oculto e assombração. Mais animais (elefante, tigre, corvos, cavalo, macaco).
+  - Mais habilidades em todos os tipos.
+  - Pessoas e assombrações vêm com atitude (com a DT para melhorar), o que podem oferecer e o que pedem.
+  - Traço especial opcional (blindado, enorme, veloz, ferido, duas armas…), escolhido ou sorteado. O botão ✨ Traço acrescenta um depois.
+  - “Últimos gerados” guarda os 10 anteriores para você voltar a eles.
+- **Encontro (novo):** escolha o tema, o VD, a dificuldade e o elemento. Sai um grupo coerente (chefe, comuns e lacaios) com a cena: onde, o que estão fazendo, o que querem, quando atacam e fogem, uma complicação, como resolver sem luta e a recompensa. Dá para trocar a cena ou um grupo, pôr todos no combate de uma vez e guardar qualquer um.
+- **Equipe:**
+  - Tipos novos: pesquisadores da universidade, sobreviventes de outro Hexatombe, grupo da igreja e canal de caça-fantasmas.
+  - Composição: equilibrada, mais combate, mais ocultismo ou furtiva.
+  - A equipe ganha base, recursos, como trata os agentes, reação no primeiro encontro, o que oferece e quer numa troca, e o plano do começo à hora do sacrifício.
+  - Função nova: intendente (cuida da comida).
+  - Cada integrante tem aparência, o que carrega, uma fala e, às vezes, um segredo. Mais tensões em equipes grandes.
+  - Tudo isso vai junto para o “Plano secreto do mestre” e o “Perfil da equipe” no Hexatombe.

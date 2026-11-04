@@ -43,7 +43,7 @@ async function abrirCaixaDeSom() {
   try {
     const h = await OBR.viewport.getHeight();
     await OBR.popover.open({
-      id: POP, url: new URL("som.html?v=1.3.1", location.href).href, width: 240, height: 52,
+      id: POP, url: new URL("som.html?v=1.4.0", location.href).href, width: 240, height: 52,
       anchorReference: "POSITION", anchorPosition: { left: 72, top: h - 12 },
       anchorOrigin: { horizontal: "LEFT", vertical: "BOTTOM" }, transformOrigin: { horizontal: "LEFT", vertical: "BOTTOM" },
       disableClickAway: true, hidePaper: true,

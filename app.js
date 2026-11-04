@@ -1,8 +1,9 @@
 import OBR, { buildShape } from "https://cdn.jsdelivr.net/npm/@owlbear-rodeo/sdk@3.1.0/+esm";
-import { CONDICOES, ESTIGMAS, BESTIARIO } from "./dados.js?v=1.3.1";
-import { EFEITOS, AMBIENTES, tocar as tocarLocal, setVolume as setVolLocal } from "./sons.js?v=1.3.1";
-import { gerarEquipe, outroMembro, outraHistoriaEquipe, equipeTexto, membroTexto, NEXS, TEMAS } from "./equipe.js?v=1.3.1";
-import { gerarNpc, VDS, TIPOS, PAPEIS, outrasHabilidades, outraHistoria, outroNome, loreTexto } from "./gerador.js?v=1.3.1";
+import { CONDICOES, ESTIGMAS, BESTIARIO } from "./dados.js?v=1.4.0";
+import { EFEITOS, AMBIENTES, tocar as tocarLocal, setVolume as setVolLocal } from "./sons.js?v=1.4.0";
+import { gerarEquipe, outroMembro, outraHistoriaEquipe, equipeTexto, membroTexto, NEXS, TEMAS, COMPOSICOES } from "./equipe.js?v=1.4.0";
+import { gerarNpc, VDS, TIPOS, PAPEIS, TRACOS, aplicarTraco, outrasHabilidades, outraHistoria, outroNome, loreTexto } from "./gerador.js?v=1.4.0";
+import { gerarEncontro, cenaEncontro, outroGrupo, encontroTexto, TEMAS_ENC, DIFICULDADES, ELEMENTOS_ENC, PAPEL_NOME } from "./encontro.js?v=1.4.0";
 
 /* =========================================================
    Escudo do Mestre — Hexatombe (Owlbear Rodeo)
@@ -98,7 +99,7 @@ const logKey = () => `${NS}:log:${roomId}`;
 
 function defMine() {
   return { combate: { lista: [], vez: 0, rodada: 1, ativo: false, anel: true, anunciar: true, seguir: false }, ocultas: [], notas: "", soOnline: false, undo: [],
-    npcs: [], cenas: {}, relogios: [], timer: null, amb: { loops: [], url: "", urlVol: 0.6 }, gen: { tipo: "Sangue", vd: 40, papel: "comum" } };
+    npcs: [], cenas: {}, relogios: [], timer: null, amb: { loops: [], url: "", urlVol: 0.6 }, gen: { tipo: "Sangue", vd: 40, papel: "comum", traco: "nenhum" } };
 }
 let mine = defMine();
 function loadMine() {
@@ -467,14 +468,14 @@ function geradoHTML(g) {
   const c = g.cri;
   const lore = loreTexto(c.lore);
   return `<div class="gerado"><div class="row between"><b class="gen">${esc(g.nome)}</b><button class="icon ghost" data-a="genNome" title="Outro nome">🎲</button></div>
-    <div class="muted small">${esc(c.tipo)} · VD ${esc(c.vd)} · ${esc(c.desl)}</div>
+    <div class="muted small">${esc(c.tipo)} · VD ${esc(c.vd)} · ${esc(c.desl)}${g.traco ? ` · <span class="traco">✨ ${esc(g.traco)}</span>` : ""}</div>
     ${c.attrs ? `<div class="small attrs">${esc(c.attrs)}</div>` : ""}
-    <div class="gstats"><span>Def <b>${g.def}</b></span><span>PV <b>${g.pv}</b></span><span>Ini <b>${esc(c.ini)}</b></span><span>Perc. <b>${esc(c.per)}</b></span></div>
+    <div class="gstats"><span>Def <b>${g.def}</b></span><span>PV <b>${g.pvInicial ? `${g.pvInicial}/` : ""}${g.pv}</b></span><span>Ini <b>${esc(c.ini)}</b></span><span>Perc. <b>${esc(c.per)}</b></span></div>
     <div class="small">Fort ${esc(c.res.Fortitude)} · Ref ${esc(c.res.Reflexos)} · Von ${esc(c.res.Vontade)}</div>
     ${c.rd ? `<div class="small">RD: ${esc(c.rd)}${c.vuln ? ` · vulnerável a ${esc(c.vuln)}` : ""}</div>` : ""}
     ${c.pp ? `<div class="small">Presença perturbadora: ${esc(c.pp)}</div>` : ""}
     <ul class="small gl">${c.atq.map((a) => `<li><b>${esc(a[0])}</b> ${esc(a[1])} · ${esc(a[2])} ${esc(a[3])}</li>`).join("")}${(c.extra || []).map((a) => `<li><b>${esc(a[0])}</b></li>`).join("")}</ul>
-    <div class="row between ghead"><b class="small">Habilidades</b><button class="ghost small" data-a="genHabs" title="Sorteia outras habilidades, mantendo o resto">🎲 Outras</button></div>
+    <div class="row between ghead"><b class="small">Habilidades</b><span class="row">${g.traco ? "" : `<button class="ghost small" data-a="genTraco" title="Acrescenta um traço especial sorteado">✨ Traço</button>`}<button class="ghost small" data-a="genHabs" title="Sorteia outras habilidades, mantendo o resto">🎲 Outras</button></span></div>
     <ul class="small gl habs">${c.hab.map((h) => `<li>${habHTML(h)}</li>`).join("")}</ul>
     ${lore.length ? `<div class="row between ghead"><b class="small">História</b><button class="ghost small" data-a="genLore" title="Sorteia outra história, mantendo os números">🎲 Outra</button></div>
     <div class="lore small"><p>${esc(lore[0])}</p><ul class="gl">${lore.slice(1).map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>` : ""}
@@ -501,7 +502,7 @@ function membroHTML(m, i) {
   </details>`;
 }
 function viewGeradorEquipe() {
-  const o = mine.genEq ||= { tema: "sorteio", nex: 35, tam: 4 };
+  const o = mine.genEq ||= { tema: "sorteio", nex: 35, tam: 4, comp: "equilibrada" };
   const e = ui.equipe; const h = hx();
   const alvos = (h?.equipes || []).map((t, i) => [i, t, (t.membros || []).length]);
   const livre = alvos.find(([, , n]) => !n);
@@ -509,6 +510,7 @@ function viewGeradorEquipe() {
   return `<div class="row wrap"><select id="eqTema" title="Tipo de equipe">${TEMAS.map(([k, n]) => `<option value="${k}" ${o.tema === k ? "selected" : ""}>${n}</option>`).join("")}</select>
       <select id="eqNex" title="NEX dos integrantes">${NEXS.map((n) => `<option value="${n}" ${num(o.nex) === n ? "selected" : ""}>NEX ${n}%</option>`).join("")}</select>
       <select id="eqTam" title="Quantos integrantes">${[2, 3, 4, 5, 6].map((n) => `<option value="${n}" ${num(o.tam) === n ? "selected" : ""}>${n} pessoas</option>`).join("")}</select>
+      <select id="eqComp" title="Composição da equipe">${COMPOSICOES.map(([k, n]) => `<option value="${k}" ${(o.comp || "equilibrada") === k ? "selected" : ""}>${n}</option>`).join("")}</select>
       <button class="primary" data-a="eqGerar">🎲 Gerar equipe</button></div>
     ${e ? `<div class="gerado">
       <div class="row between"><b class="gen">${esc(e.nome)}</b><span class="muted small">${esc(e.temaNome)} · NEX ${e.nex}%</span></div>
@@ -517,7 +519,10 @@ function viewGeradorEquipe() {
       <div class="lore small"><p>${esc(e.conceito)}</p><ul class="gl">
         <li><b>Desejo:</b> ${esc(e.desejo)}.</li><li><b>Estratégia:</b> ${esc(e.estrategia)}</li>
         <li><b>Segredo:</b> ${esc(e.segredo)}.</li><li><b>Ponto fraco:</b> ${esc(e.fraqueza)}.</li>
-        ${e.tensoes.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>
+        ${e.base ? `<li><b>Base:</b> ${esc(e.base)}.</li><li><b>Recursos:</b> ${esc(e.recursos)}.</li>` : ""}
+        ${e.postura ? `<li><b>Com os agentes:</b> ${esc(e.postura)}.</li><li><b>No primeiro encontro:</b> ${esc(e.reacao)}</li><li><b>Troca:</b> ${esc(e.troca)}</li>` : ""}</ul>
+        ${(e.fases || []).length ? `<b class="small">Plano ao longo do ritual</b><ul class="gl">${e.fases.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
+        <b class="small">Entre eles</b><ul class="gl">${e.tensoes.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>
       <div class="row between ghead"><b class="small">Integrantes (${e.membros.length})</b></div>
       ${e.membros.map(membroHTML).join("")}
       <div class="ghead">
@@ -527,25 +532,75 @@ function viewGeradorEquipe() {
         : `<div class="row wrap"><button class="primary" data-a="eqHexa">⛺ Pôr no Hexatombe</button></div><p class="muted small">Vai para a primeira equipe vazia do Hexatombe quando ele abrir nesta sala.</p>`}
         <div class="row wrap"><button data-a="eqCombate">＋ Todos no combate</button><button class="ghost" data-a="eqCopiar">📋 Copiar</button></div>
       </div></div>`
-    : `<p class="muted small">Cria uma equipe rival para o Hexatombe: nome, lema, o que querem pedir no desejo, estratégia, segredo, tensões entre eles e de 2 a 6 agentes com PV, PE, Defesa, perícias, ataques, habilidades da função e um pouco de história (inclusive quem pode desertar). Os números são aproximados, na escala do NEX.</p>`}`;
+    : `<p class="muted small">Cria uma equipe rival para o Hexatombe: nome, lema, desejo, estratégia, segredo, base, recursos, como tratam os agentes, o que trocam, o plano do começo ao sacrifício, tensões entre eles e de 2 a 6 agentes com PV, PE, Defesa, perícias, ataques, habilidades da função e história (aparência, fala, segredo e quem pode desertar). Os números são aproximados, na escala do NEX.</p>`}`;
+}
+/* ---------- Gerador de encontros ---------- */
+function npcResumoHTML(x, i) {
+  const g = x.g; const c = g.cri;
+  return `<details class="membro"><summary><b>${x.qtd > 1 ? `${x.qtd}× ` : ""}${esc(g.nome)}</b> <span class="muted small">${esc(PAPEL_NOME[x.papel] || x.papel)} · ${esc(c.tipo)}${g.traco ? ` · ✨ ${esc(g.traco)}` : ""}</span>
+      <button class="icon ghost" data-a="encGrupo" data-i="${i}" title="Sortear outro, mantendo o papel">🎲</button></summary>
+    <div class="gstats"><span>Def <b>${g.def}</b></span><span>PV <b>${g.pvInicial ? `${g.pvInicial}/` : ""}${g.pv}</b></span><span>Ini <b>${esc(c.ini)}</b></span><span>Perc. <b>${esc(c.per)}</b></span></div>
+    <div class="small">Fort ${esc(c.res.Fortitude)} · Ref ${esc(c.res.Reflexos)} · Von ${esc(c.res.Vontade)}${c.rd ? ` · RD ${esc(c.rd)}` : ""}${c.vuln ? ` · vuln. ${esc(c.vuln)}` : ""}</div>
+    <ul class="small gl">${c.atq.map((a) => `<li><b>${esc(a[0])}</b> ${esc(a[1])} · ${esc(a[2])} ${esc(a[3])}</li>`).join("")}</ul>
+    <ul class="small gl habs">${c.hab.map((h) => `<li>${habHTML(h)}</li>`).join("")}</ul>
+    <div class="lore small"><ul class="gl">${loreTexto(c.lore).map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>
+    <div class="row wrap"><button data-a="encGrupoCombate" data-i="${i}">＋ Combate</button><button class="ghost" data-a="encGuardar" data-i="${i}">💾 Guardar</button></div>
+  </details>`;
+}
+function viewGeradorEncontro() {
+  const o = mine.genEnc ||= { tema: "sorteio", vd: 40, dif: "medio", el: "sorteio" };
+  const e = ui.encontro;
+  const inimigos = e ? e.grupos.filter((x) => !x.aliado).reduce((s, x) => s + x.qtd, 0) : 0;
+  return `<div class="row wrap"><select id="encTema" title="Tipo de encontro">${TEMAS_ENC.map(([k, n]) => `<option value="${k}" ${o.tema === k ? "selected" : ""}>${n}</option>`).join("")}</select>
+      <select id="encVd" title="Nível da ameaça (VD)">${VDS.map((v) => `<option value="${v}" ${num(o.vd) === v ? "selected" : ""}>VD ${v}</option>`).join("")}</select>
+      <select id="encDif" title="Dificuldade">${DIFICULDADES.map(([k, n]) => `<option value="${k}" ${o.dif === k ? "selected" : ""}>${n}</option>`).join("")}</select>
+      <select id="encEl" title="Elemento das criaturas e do culto">${ELEMENTOS_ENC.map(([k, n]) => `<option value="${k}" ${o.el === k ? "selected" : ""}>${n}</option>`).join("")}</select>
+      <button class="primary" data-a="encGerar">🎲 Gerar encontro</button></div>
+    ${e ? `<div class="gerado">
+      <div class="row between"><b class="gen">${esc(e.titulo)}</b><span class="muted small">${esc(e.temaNome)} · ${esc(e.difNome)} · VD ${e.vd}</span></div>
+      <div class="row between ghead"><b class="small">A cena</b><button class="ghost small" data-a="encCena" title="Sorteia outra cena, mantendo os inimigos">🎲 Outra</button></div>
+      <div class="lore small"><ul class="gl">
+        <li><b>Onde:</b> ${esc(e.local)}.</li><li><b>O que estão fazendo:</b> ${esc(e.situacao)}.</li><li><b>O que querem:</b> ${esc(e.objetivo)}.</li>
+        <li><b>Quando atacam:</b> ${esc(e.gatilho)}</li><li><b>Quando fogem:</b> ${esc(e.fuga)}</li>
+        <li><b>Complicação:</b> ${esc(e.complicacao)}</li><li><b>Sem luta:</b> ${esc(e.semLuta)}</li><li><b>Recompensa:</b> ${esc(e.recompensa)}.</li></ul></div>
+      <div class="row between ghead"><b class="small">Quem está lá (${inimigos} inimigo${inimigos === 1 ? "" : "s"})</b></div>
+      ${e.grupos.map(npcResumoHTML).join("")}
+      <div class="row wrap ghead"><button class="primary" data-a="encCombate">＋ Todos no combate</button><button class="ghost" data-a="encCopiar">📋 Copiar</button></div>
+      <p class="muted small">Os inimigos entram com o nome oculto para a mesa; os civis entram com o nome visível.</p>
+    </div>`
+    : `<p class="muted small">Monta um encontro inteiro: um grupo coerente de inimigos (chefe, comuns e lacaios do mesmo tema e elemento), com o que estão fazendo quando os agentes chegam, onde, quando atacam e quando fogem, uma complicação, um jeito de resolver sem luta e a recompensa. A dificuldade muda quantos são: fácil (3), médio (5), difícil (5 com chefe) e mortal (7 com chefe).</p>`}`;
 }
 function viewGerador() {
   const g = mine.gen;
   const salvos = mine.npcs || [];
   const modo = ui.genModo || "npc";
-  const seg = `<nav class="seg gmodo"><button data-a="genModo" data-k="npc" class="${modo === "npc" ? "on" : ""}">👤 NPC</button><button data-a="genModo" data-k="equipe" class="${modo === "equipe" ? "on" : ""}">👥 Equipe do Hexatombe</button></nav>`;
+  const seg = `<nav class="seg gmodo"><button data-a="genModo" data-k="npc" class="${modo === "npc" ? "on" : ""}">👤 NPC</button><button data-a="genModo" data-k="encontro" class="${modo === "encontro" ? "on" : ""}">🎭 Encontro</button><button data-a="genModo" data-k="equipe" class="${modo === "equipe" ? "on" : ""}">👥 Equipe</button></nav>`;
   if (modo === "equipe") return `<section class="card"><h3>Gerador</h3>${seg}${viewGeradorEquipe()}</section>`;
+  if (modo === "encontro") return `<section class="card"><h3>Gerador</h3>${seg}${viewGeradorEncontro()}</section>`;
   return `<section class="card"><h3>Gerador</h3>${seg}
     <div class="row wrap"><select id="genTipo">${TIPOS.map(([k, n]) => `<option value="${k}" ${g.tipo === k ? "selected" : ""}>${n}</option>`).join("")}</select>
       <select id="genVd" title="Nível da ameaça (VD)">${VDS.map((v) => `<option value="${v}" ${num(g.vd) === v ? "selected" : ""}>VD ${v}</option>`).join("")}</select>
       <select id="genPapel">${PAPEIS.map(([k, n]) => `<option value="${k}" ${g.papel === k ? "selected" : ""}>${n}</option>`).join("")}</select>
+      <select id="genTraco" title="Traço especial (opcional)"><option value="nenhum" ${!g.traco || g.traco === "nenhum" ? "selected" : ""}>Sem traço</option><option value="sortear" ${g.traco === "sortear" ? "selected" : ""}>✨ Traço sorteado</option>${TRACOS.map(([n]) => `<option value="${esc(n)}" ${g.traco === n ? "selected" : ""}>✨ ${esc(n)}</option>`).join("")}</select>
       <button class="primary" data-a="gerar">🎲 Gerar</button></div>
-    ${ui.gerado ? geradoHTML(ui.gerado) : `<p class="muted small">Cria uma ameaça pronta: Defesa, PV, atributos, testes, ataques, habilidades sorteadas do tipo escolhido (lacaio 1, comum 2, chefe 3 + uma de chefe) e uma pequena história, com o que quer, um segredo, como luta e o que carrega. Os números são aproximados, para improvisar.</p>`}
+    ${ui.gerado ? geradoHTML(ui.gerado) : `<p class="muted small">Cria uma ameaça pronta: Defesa, PV, atributos, testes, ataques, habilidades sorteadas do tipo escolhido (lacaio 1, comum 2, chefe 3 + uma de chefe) e uma pequena história, com o que quer, um segredo, como luta e o que carrega. Pessoas e assombrações vêm também com atitude, o que podem oferecer e o que pedem. O traço especial é opcional. Os números são aproximados, para improvisar.</p>`}
+    ${(ui.recentes || []).length ? `<details><summary class="small">Últimos gerados (${ui.recentes.length})</summary><ul class="small gl">${ui.recentes.map((r, i) => `<li><button class="linkish" data-a="genVoltar" data-i="${i}">${esc(r.nome)}</button> <span class="muted">${esc(r.cri.tipo)} · VD ${esc(r.cri.vd)}</span></li>`).join("")}</ul></details>` : ""}
     ${salvos.length ? `<details><summary class="small">Guardados (${salvos.length})</summary><ul class="small gl">${salvos.map((n) => `<li>${esc(n.nome)} <span class="muted">VD ${esc(n.vd)}</span> <button class="icon ghost danger" data-a="genApagar" data-id="${esc(n.id)}" title="Apagar">✕</button></li>`).join("")}</ul></details>` : ""}
   </section>`;
 }
 function geradoParaBestiario(g) {
   return { id: uid(), nome: g.nome, tipo: g.cri.tipo, vd: g.cri.vd, def: g.def, pv: g.pv, ini: g.cri.ini, per: g.cri.per, res: g.cri.res, atq: g.cri.atq, extra: g.cri.extra, hab: g.cri.hab, pp: g.cri.pp, rd: g.cri.rd, vuln: g.cri.vuln, desl: g.cri.desl, attrs: g.cri.attrs || "", lore: g.cri.lore || null };
+}
+
+function npcTexto(g) {
+  const c = g.cri;
+  return `${g.nome} — ${c.tipo}, VD ${c.vd}\nDefesa ${g.def} · PV ${g.pv} · Desloc. ${c.desl}\nIniciativa ${c.ini} · Percepção ${c.per} · Fortitude ${c.res.Fortitude} · Reflexos ${c.res.Reflexos} · Vontade ${c.res.Vontade}${c.rd ? `\nResistências: ${c.rd}` : ""}${c.vuln ? ` · Vulnerável: ${c.vuln}` : ""}${c.pp ? `\nPresença perturbadora: ${c.pp}` : ""}${c.attrs ? `\n${c.attrs}` : ""}\n${c.atq.map((a) => `${a[0]}: ${a[1]} (${a[2]} ${a[3]})`).join("\n")}\n\nHabilidades\n${c.hab.join("\n")}${c.lore ? `\n\nHistória\n${loreTexto(c.lore).join("\n")}` : ""}`;
+}
+function lembrarGerado(g) { if (!g) return; ui.recentes = [g, ...(ui.recentes || []).filter((x) => x !== g)].slice(0, 10); }
+function grupoNoCombate(x) {
+  const g = x.g;
+  for (let k = 0; k < x.qtd; k++) addCombatente({ nome: x.qtd > 1 ? `${g.nome} ${k + 1}` : g.nome, cri: { nome: g.nome, ...g.cri }, pv: g.pvInicial || g.pv, pvMax: g.pv, def: g.def, oculto: !x.aliado });
+  return x.qtd;
 }
 
 /* ---------- Combate: tokens do mapa ---------- */
@@ -798,6 +853,7 @@ $app.addEventListener("change", (ev) => {
   if (el.id === "genTipo") { mine.gen.tipo = el.value; saveMine(); return; }
   if (el.id === "genVd") { mine.gen.vd = num(el.value); saveMine(); return; }
   if (el.id === "genPapel") { mine.gen.papel = el.value; saveMine(); return; }
+  if (el.id === "genTraco") { mine.gen.traco = el.value; saveMine(); return; }
   if (el.id === "somPrevia") { ui.previa = el.checked; return; }
   if (el.id === "ambVol") { mine.amb.urlVol = clamp(num(el.value) / 100, 0, 1); publicar(); return; }
 });
@@ -981,7 +1037,7 @@ $app.addEventListener("click", async (ev) => {
     case "cAddSel": return addSelecionados();
     case "genModo": ui.genModo = b.dataset.k; return render();
     case "eqGerar": {
-      mine.genEq = { tema: val("eqTema") || "sorteio", nex: num(val("eqNex")) || 35, tam: num(val("eqTam")) || 4 }; saveMine();
+      mine.genEq = { tema: val("eqTema") || "sorteio", nex: num(val("eqNex")) || 35, tam: num(val("eqTam")) || 4, comp: val("eqComp") || "equilibrada" }; saveMine();
       ui.equipe = gerarEquipe(mine.genEq); ui.eqAlvo = undefined; return render();
     }
     case "eqHist": if (ui.equipe) outraHistoriaEquipe(ui.equipe); return render();
@@ -1000,25 +1056,52 @@ $app.addEventListener("click", async (ev) => {
       const e = ui.equipe; if (!e) return; const ti = document.getElementById("eqAlvo") ? num(val("eqAlvo")) : -1; ui.eqAlvo = ti >= 0 ? ti : undefined;
       const alvo = hx()?.equipes?.[ti];
       if (alvo && (alvo.membros || []).some((m) => !m.sheetId) && !b.classList.contains("confirm")) { b.classList.add("confirm"); b.textContent = "Confirmar: trocar os NPCs?"; return; }
-      const plano = [`${e.nome} (${e.temaNome})`, `Desejo: ${e.desejo}.`, `Estratégia: ${e.estrategia}`, `Segredo: ${e.segredo}.`, `Ponto fraco: ${e.fraqueza}.`, ...e.tensoes].join("\n");
+      const plano = [`${e.nome} (${e.temaNome})`, ...equipeTexto(e).slice(3)].join("\n");
       const membros = e.membros.map(({ funcao, classe, lealdade, ...m }) => m);
       lsSet(HX_IMPORT, JSON.stringify({ at: Date.now(), ti, equipe: { nome: e.nome, membros, plano, perfil: equipeTexto(e).slice(1) } }));
       toast(`${e.nome} enviada ao Hexatombe. Ela aparece na aba Equipes.`); return render();
     }
-    case "gerar": mine.gen = { tipo: val("genTipo") || mine.gen.tipo, vd: num(val("genVd")) || mine.gen.vd, papel: val("genPapel") || mine.gen.papel }; saveMine(); ui.gerado = gerarNpc(mine.gen); return render();
+    case "gerar": {
+      mine.gen = { tipo: val("genTipo") || mine.gen.tipo, vd: num(val("genVd")) || mine.gen.vd, papel: val("genPapel") || mine.gen.papel, traco: val("genTraco") || "nenhum" }; saveMine();
+      lembrarGerado(ui.gerado); ui.gerado = gerarNpc(mine.gen); return render();
+    }
+    case "genTraco": { if (!ui.gerado) return; aplicarTraco(ui.gerado); return render(); }
+    case "genVoltar": {
+      const r = (ui.recentes || [])[num(b.dataset.i)]; if (!r) return;
+      ui.recentes = ui.recentes.filter((x) => x !== r); lembrarGerado(ui.gerado); ui.gerado = r; return render();
+    }
+    /* Encontro */
+    case "encGerar": {
+      mine.genEnc = { tema: val("encTema") || "sorteio", vd: num(val("encVd")) || 40, dif: val("encDif") || "medio", el: val("encEl") || "sorteio" }; saveMine();
+      ui.encontro = gerarEncontro(mine.genEnc); return render();
+    }
+    case "encCena": if (ui.encontro) cenaEncontro(ui.encontro); return render();
+    case "encGrupo": ev.preventDefault?.(); if (ui.encontro) outroGrupo(ui.encontro, num(b.dataset.i)); return render();
+    case "encGrupoCombate": { const x = ui.encontro?.grupos[num(b.dataset.i)]; if (!x) return; grupoNoCombate(x); toast(`${x.qtd > 1 ? `${x.qtd}× ` : ""}${x.g.nome} no combate.`); return render(); }
+    case "encCombate": {
+      const e = ui.encontro; if (!e) return; let n = 0;
+      for (const x of e.grupos) n += grupoNoCombate(x);
+      toast(`${n} no combate: ${e.titulo}.`); return render();
+    }
+    case "encGuardar": { const x = ui.encontro?.grupos[num(b.dataset.i)]; if (!x) return; (mine.npcs ||= []).unshift(geradoParaBestiario(x.g)); mine.npcs = mine.npcs.slice(0, 40); saveMine(); toast("Guardado: aparece em “Criatura do bestiário…”."); return render(); }
+    case "encCopiar": {
+      const e = ui.encontro; if (!e) return;
+      try { await navigator.clipboard.writeText([...encontroTexto(e), "", ...e.grupos.map((x) => npcTexto(x.g))].join("\n\n")); toast("Copiado."); } catch { toast("Não deu para copiar aqui."); }
+      return;
+    }
     case "genNome": { if (!ui.gerado) return; outroNome(ui.gerado); return render(); }
     case "genHabs": { if (!ui.gerado) return; outrasHabilidades(ui.gerado); return render(); }
     case "genLore": { if (!ui.gerado) return; outraHistoria(ui.gerado); return render(); }
     case "genCombate": {
       const g = ui.gerado; if (!g) return; const q = clamp(num(val("genQtd")) || 1, 1, 20);
-      for (let k = 0; k < q; k++) addCombatente({ nome: q > 1 ? `${g.nome} ${k + 1}` : g.nome, cri: { nome: g.nome, ...g.cri }, pv: g.pv, pvMax: g.pv, def: g.def, oculto: true });
+      for (let k = 0; k < q; k++) addCombatente({ nome: q > 1 ? `${g.nome} ${k + 1}` : g.nome, cri: { nome: g.nome, ...g.cri }, pv: g.pvInicial || g.pv, pvMax: g.pv, def: g.def, oculto: true });
       toast(`${q > 1 ? `${q}× ` : ""}${g.nome} no combate.`); return render();
     }
     case "genSalvar": { if (!ui.gerado) return; (mine.npcs ||= []).unshift(geradoParaBestiario(ui.gerado)); mine.npcs = mine.npcs.slice(0, 40); saveMine(); toast("Guardado: aparece em “Criatura do bestiário…”."); return render(); }
     case "genApagar": mine.npcs = (mine.npcs || []).filter((n) => n.id !== id); saveMine(); return render();
     case "genCopiar": {
-      const g = ui.gerado; if (!g) return; const c = g.cri;
-      const t = `${g.nome} — ${c.tipo}, VD ${c.vd}\nDefesa ${g.def} · PV ${g.pv} · Desloc. ${c.desl}\nIniciativa ${c.ini} · Percepção ${c.per} · Fortitude ${c.res.Fortitude} · Reflexos ${c.res.Reflexos} · Vontade ${c.res.Vontade}${c.rd ? `\nResistências: ${c.rd}` : ""}${c.vuln ? ` · Vulnerável: ${c.vuln}` : ""}${c.pp ? `\nPresença perturbadora: ${c.pp}` : ""}${c.attrs ? `\n${c.attrs}` : ""}\n${c.atq.map((a) => `${a[0]}: ${a[1]} (${a[2]} ${a[3]})`).join("\n")}\n\nHabilidades\n${c.hab.join("\n")}${c.lore ? `\n\nHistória\n${loreTexto(c.lore).join("\n")}` : ""}`;
+      const g = ui.gerado; if (!g) return;
+      const t = npcTexto(g);
       try { await navigator.clipboard.writeText(t); toast("Copiado."); } catch { toast("Não deu para copiar aqui."); }
       return;
     }

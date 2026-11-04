@@ -199,3 +199,9 @@ input[type=range] { flex: 1; accent-color: var(--accent); padding: 0; background
 .membro summary { cursor: pointer; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .membro summary .icon { margin-left: auto; }
 .membro[open] summary { margin-bottom: 4px; }
+
+/* v1.4: traços, histórico e encontros */
+.traco { color: #e8b84a; }
+button.linkish { background: none; border: none; padding: 0; color: inherit; font-weight: 600; text-decoration: underline dotted; cursor: pointer; }
+.gerado .lore b.small { display: block; margin-top: 6px; }
+.gmodo button { white-space: nowrap; padding-left: 4px; padding-right: 4px; }

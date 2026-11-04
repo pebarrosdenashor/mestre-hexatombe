@@ -1,5 +1,5 @@
 /* =========================================================
-   Gerador de NPCs e criaturas (v2).
+   Gerador de NPCs e criaturas (v3).
    Os números são aproximados: seguem a escala das ameaças do
    Hexatombe e do livro básico (Defesa, PV e testes por VD),
    para improvisar. Cada NPC sai com habilidades sorteadas de
@@ -24,10 +24,11 @@ export const CURA = { 10: "1d8", 20: "2d8", 40: "3d8", 60: "4d8", 80: "5d8", 100
 
 export const TIPOS = [
   ["humano", "Pessoa armada"], ["civil", "Civil / testemunha"], ["cultista", "Cultista"], ["circo", "Artista do circo"],
-  ["possuido", "Pessoa tomada pelo Outro Lado"], ["animal", "Animal"],
+  ["agente", "Agente rival / caçador do oculto"], ["possuido", "Pessoa tomada pelo Outro Lado"], ["assombracao", "Assombração"], ["animal", "Animal"],
   ["Sangue", "Criatura de Sangue"], ["Morte", "Criatura de Morte"], ["Conhecimento", "Criatura de Conhecimento"], ["Energia", "Criatura de Energia"], ["Medo", "Criatura de Medo"],
 ];
 export const PAPEIS = [["lacaio", "Lacaio (fraco, em bando)"], ["comum", "Comum"], ["chefe", "Chefe"]];
+const PESSOAS = ["humano", "civil", "cultista", "circo", "agente", "possuido"];
 const ELEMENTOS = ["Sangue", "Morte", "Conhecimento", "Energia"];
 const FRACO = { Sangue: "Morte", Morte: "Energia", Energia: "Conhecimento", Conhecimento: "Sangue", Medo: "" };
 
@@ -37,12 +38,12 @@ export const chance = (p) => Math.random() < p;
 
 /* ---------- Nomes ---------- */
 const NOMES = {
-  m: ["Bruno", "Diego", "Fábio", "Hugo", "João", "Lucas", "Nilo", "Paulo", "Rafael", "Túlio", "Vítor", "Zeca", "Caetano", "Ernesto", "Irineu", "Aurélio", "Dirceu", "Gerson", "Jairo", "Moacir", "Osvaldo", "Sebastião", "Valdemar", "Benedito"],
-  f: ["Ana", "Carla", "Elisa", "Glória", "Iara", "Kátia", "Marta", "Olga", "Sônia", "Wanda", "Benedita", "Dalva", "Jussara", "Mirela", "Odete", "Cida", "Edite", "Heloísa", "Ivone", "Lurdes", "Neusa", "Quitéria", "Rosângela", "Tereza", "Zuleide"],
+  m: ["Adalberto", "Clóvis", "Everaldo", "Juvenal", "Lindomar", "Raimundo", "Wanderley", "Bruno", "Diego", "Fábio", "Hugo", "João", "Lucas", "Nilo", "Paulo", "Rafael", "Túlio", "Vítor", "Zeca", "Caetano", "Ernesto", "Irineu", "Aurélio", "Dirceu", "Gerson", "Jairo", "Moacir", "Osvaldo", "Sebastião", "Valdemar", "Benedito"],
+  f: ["Aparecida", "Celeste", "Doralice", "Francisca", "Leonor", "Marlene", "Socorro", "Ana", "Carla", "Elisa", "Glória", "Iara", "Kátia", "Marta", "Olga", "Sônia", "Wanda", "Benedita", "Dalva", "Jussara", "Mirela", "Odete", "Cida", "Edite", "Heloísa", "Ivone", "Lurdes", "Neusa", "Quitéria", "Rosângela", "Tereza", "Zuleide"],
 };
 const gen = (ctx, m, f) => (ctx.g === "f" ? f : m);
-const SOBRENOMES = ["Silva", "Souza", "Pereira", "Costa", "Nogueira", "Barros", "Ferraz", "Rocha", "Moraes", "Prado", "Siqueira", "Fonseca", "Lacerda", "Albuquerque", "Bittencourt", "Cardoso", "Damasceno", "Esteves", "Galvão", "Mendonça", "Queiroz", "Teixeira", "Vasconcelos"];
-const APELIDOS = ["Dente-de-Ouro", "Tição", "Ferrugem", "Mão-Leve", "Corvo", "Baixinho", "Cicatriz", "Doutor", "Vela", "Coruja", "Fumaça", "Navalha", "Padre", "Sorriso"];
+const SOBRENOMES = ["Silva", "Souza", "Pereira", "Costa", "Nogueira", "Barros", "Ferraz", "Rocha", "Moraes", "Prado", "Siqueira", "Fonseca", "Lacerda", "Albuquerque", "Bittencourt", "Cardoso", "Damasceno", "Esteves", "Galvão", "Mendonça", "Queiroz", "Teixeira", "Vasconcelos", "Aragão", "Brandão", "Coutinho", "Falcão", "Medeiros", "Paiva", "Sampaio", "Tavares"];
+const APELIDOS = ["Dente-de-Ouro", "Tição", "Ferrugem", "Mão-Leve", "Corvo", "Baixinho", "Cicatriz", "Doutor", "Vela", "Coruja", "Fumaça", "Navalha", "Padre", "Sorriso", "Bigode", "Fantasma", "Gaguinho", "Pólvora", "Sete-Dedos", "Tamanduá", "Vaga-Lume"];
 const LUGARES = ["da Lona Rasgada", "do Picadeiro", "do Poço Seco", "da Estrada Velha", "da Mata Fechada", "do Necrotério", "do Trem Parado", "das Jaulas", "do Lago Escuro", "da Capela", "do Galpão", "da Roda-Gigante", "do Porão", "da Rodovia"];
 export function nomePessoa(g) {
   const pn = pick(NOMES[g] || NOMES.m); const sn = pick(SOBRENOMES);
@@ -73,6 +74,10 @@ export const H = {
     ["Pedir reforço", "1×/cena", "Grita no rádio: chegam 1d4 lacaios no início da próxima rodada."],
     ["Tiro na perna", "padrão", "Ataque com −5: se acertar, o alvo fica lento até o fim da cena."],
     ["Treinado para isso", "passiva", "Não fica abalado nem apavorado por presença perturbadora de VD até {vd}."],
+    ["Colete à prova de balas", "passiva", "RD 5 contra balístico."],
+    ["Lanterna no rosto", "movimento", "Cega um alvo em alcance curto até o início do próximo turno (Reflexos DT {dt} evita)."],
+    ["Atirar e correr", "passiva", "Pode se mover depois de atacar à distância sem sofrer ataques de oportunidade."],
+    ["Refém", "padrão", "Agarra alguém adjacente e o usa de escudo: ataques contra ele têm 50% de chance de acertar o refém."],
   ],
   civil: [
     ["Grito de socorro", "livre", "Todos num raio de 30m ouvem; quem estiver por perto vem ver o que houve."],
@@ -82,6 +87,9 @@ export const H = {
     ["Testemunha-chave", "—", "Viu algo importante; só conta depois de convencido (Diplomacia DT {dt}) ou de ser salvo."],
     ["Primeiros socorros", "padrão", "Estabiliza alguém que esteja morrendo; o alvo recupera 1d4 PV."],
     ["Arma improvisada", "passiva", "Pega o que estiver por perto: faca de cozinha, extintor, cadeira (dano 1d6 impacto ou corte)."],
+    ["Sabe de uma passagem", "—", "Conhece um atalho, porão ou saída que não aparece no mapa."],
+    ["Coragem de última hora", "1×/cena", "Quando um agente cai perto dele, para de fugir e ajuda: arrasta, distrai ou estabiliza."],
+    ["Mentira nervosa", "passiva", "Mente mal: Intuição DT {dt} percebe que está escondendo algo."],
   ],
   cultista: [
     ["Fanatismo", "passiva", "Imune a ficar abalado ou apavorado."],
@@ -93,6 +101,9 @@ export const H = {
     ["Lâmina consagrada", "passiva", "Ataques corpo a corpo causam +{d} do elemento do culto."],
     ["Seguidores", "1×/cena", "Grita uma ordem: 1d4 lacaios fanáticos aparecem das sombras."],
     ["Último segredo", "reação", "Ao morrer, o corpo se desfaz em cinzas e símbolos; quem examinar acha uma pista do culto (Investigação DT {dt})."],
+    ["Círculo de proteção", "completa", "Desenha um círculo de 3m: aliados dentro dele recebem RD 5 contra o elemento oposto ao do culto até o fim da cena."],
+    ["Vozes em coro", "padrão", "Todos os agentes em alcance curto fazem Vontade DT {dt} ou perdem 1d4 de Sanidade."],
+    ["Sangue no altar", "reação", "Quando um aliado morre em alcance curto, recebe +2 na DT do próximo ritual."],
   ],
   circo: [
     ["Facas de arremesso", "padrão", "Dois ataques à distância contra alvos diferentes em alcance curto."],
@@ -105,6 +116,9 @@ export const H = {
     ["Corda bamba", "passiva", "Não fica desprevenido em superfícies estreitas e se move por cordas, mastros e vigas sem teste."],
     ["Fogo do engolidor", "padrão", "Cone de 4,5m: {h} de fogo (Reflexos DT {dt} reduz à metade) e o alvo pode ficar em chamas."],
     ["Nariz vermelho", "passiva", "Sempre sorri. Quem o vê ferido pela primeira vez faz Vontade DT {dt} ou fica abalado."],
+    ["Trapézio", "movimento", "Balança de um ponto alto a outro até 15m, sem pisar no chão; ataques de quem está no chão sofrem −2 contra ele neste turno."],
+    ["Cartola sem fundo", "1×/cena", "Tira da cartola algo útil para a cena: uma chave, uma corda, um coelho que distrai, uma pomba que voa até um aliado."],
+    ["Ilusão de espelhos", "reação", "Ao ser alvo de um ataque, o atacante rola 1d6: com 1–3, acerta um reflexo."],
   ],
   animal: [
     ["Faro", "passiva", "+5 em Percepção para rastrear; não sofre penalidade por escuridão para achar presas."],
@@ -115,6 +129,9 @@ export const H = {
     ["Fuga", "reação", "Abaixo de um quarto dos PV, foge com o dobro do deslocamento."],
     ["Uivo", "1×/cena", "Animais aliados em alcance médio recebem +1 dado no próximo ataque."],
     ["Emboscada", "passiva", "Na primeira rodada, se não foi percebido, o primeiro ataque causa +{d} de dano."],
+    ["Derrubar", "livre", "Ao acertar, o alvo faz Fortitude DT {dt} ou fica caído."],
+    ["Veneno", "passiva", "Quem sofrer a mordida faz Fortitude DT {dt} ou fica envenenado (1d6 por rodada, até passar no teste)."],
+    ["Sentido do Outro Lado", "passiva", "Fica agitado perto de criaturas paranormais: os agentes podem usá-lo como alarme se o domarem."],
   ],
   Sangue: [
     ["Frenesi", "passiva", "Abaixo da metade dos PV, +1 dado nos ataques e −2 na Defesa."],
@@ -125,6 +142,8 @@ export const H = {
     ["Fome de vínculo", "1×/cena", "Escolhe quem mais ama algo na mesa: Vontade DT {dt} ou ataca o aliado mais próximo no próximo turno."],
     ["Coágulo", "movimento", "Cospe sangue espesso numa área de 3m: terreno difícil e quem estiver nela fica enredado (Reflexos DT {dt} evita)."],
     ["Dor compartilhada", "passiva", "Quando sofre dano, o agente mais próximo sofre 1d4 de dano mental."],
+    ["Abraço de carne", "padrão", "Agarra e espreme: {h} de impacto e o alvo fica agarrado (Fortitude DT {dt} reduz à metade e evita agarrar)."],
+    ["Cheiro de sangue", "passiva", "Sabe onde está qualquer criatura ferida em alcance longo."],
   ],
   Morte: [
     ["Lodo", "passiva", "Alvo atingido fica lento por 1 rodada (Fortitude DT {dt} evita)."],
@@ -135,6 +154,8 @@ export const H = {
     ["Putrefação", "passiva", "Itens orgânicos e comida em alcance curto apodrecem; curas com remédios recuperam metade."],
     ["Relógio parado", "1×/cena", "Até o fim da rodada, ninguém em alcance médio recupera PV."],
     ["Cinzas", "padrão", "Sopro de cinzas em cone de 6m: {h} de Morte e cego por 1 rodada (Reflexos DT {dt} reduz à metade e evita)."],
+    ["Pele de lodo", "passiva", "Ataques corpo a corpo contra ela deixam a arma grudada: Força DT {dt} para soltar."],
+    ["Hora marcada", "1×/cena", "Escolhe um alvo e conta 3 rodadas: no fim, ele sofre {h} de Morte se não estiver fora de alcance longo."],
   ],
   Conhecimento: [
     ["Sigilos", "passiva", "Alvo atingido faz Vontade DT {dt} ou fica esmorecido até o fim da cena."],
@@ -145,6 +166,8 @@ export const H = {
     ["Olho dourado", "reação", "Ao ser alvo de um ritual, faz Ocultismo contra a DT: se vencer, devolve o ritual para quem conjurou."],
     ["Enigma", "1×/cena", "Propõe uma charada. Quem errar (Intelecto DT {dt}) fica pasmo por 1 rodada; quem acertar ganha +1 dado contra ela."],
     ["Escrita na pele", "padrão", "Marca um alvo com um sigilo: até o fim da cena, ele sofre −2 em todos os testes e a criatura sabe onde ele está."],
+    ["Pergunta", "reação", "Quando um agente fala com ela, faz uma pergunta. Se ele mentir, sofre {d} mental; se disser a verdade, ela ganha +2 no próximo ataque."],
+    ["Página arrancada", "padrão", "Rouba uma perícia treinada de um alvo até o fim da cena (Vontade DT {dt} evita)."],
   ],
   Energia: [
     ["Instável", "passiva", "No início do turno, role 1d6; com 5 ou 6, teleporta-se até 9m."],
@@ -155,6 +178,8 @@ export const H = {
     ["Caos", "1×/cena", "Cada agente em alcance curto role 1d6: 1–2 fica atordoado 1 rodada, 3–4 recupera 1d6 PV, 5–6 é empurrado 6m."],
     ["Corpo de estática", "passiva", "Quem a tocar ou agarrar sofre {d} de Energia."],
     ["Faísca viva", "movimento", "Divide-se por um instante: até o próximo turno, ataques contra ela têm 50% de chance de errar."],
+    ["Apagão", "1×/cena", "Todas as luzes em alcance longo se apagam até alguém religar (Tecnologia DT {dt})."],
+    ["Música alta", "padrão", "Um rádio ou caixa de som explode em ruído: quem estiver em alcance curto faz Fortitude DT {dt} ou fica surdo e desprevenido 1 rodada."],
   ],
   Medo: [
     ["Impossível", "passiva", "Ataques contra ela sofrem −1 dado na primeira rodada."],
@@ -164,6 +189,31 @@ export const H = {
     ["Não está aqui", "reação", "Uma vez por rodada, um ataque contra ela erra se o atacante não passar em Vontade DT {dt}."],
     ["Silêncio", "1×/cena", "Por 1 rodada, ninguém em alcance médio consegue falar nem conjurar rituais."],
     ["Fome do medo", "passiva", "Recupera {d} PV sempre que um agente perde Sanidade em alcance médio."],
+    ["Rosto conhecido", "padrão", "Assume o rosto de alguém que um agente ama: ele faz Vontade DT {dt} ou não consegue atacá-la nesta rodada."],
+    ["Atrás de você", "reação", "Quando um agente fica sozinho, aparece adjacente a ele e faz um ataque."],
+  ],
+  agente: [
+    ["Treinamento da Ordem", "passiva", "Não fica abalado com presença perturbadora e soma +2 em Vontade."],
+    ["Munição amaldiçoada", "passiva", "Os tiros causam +{d} de {el}."],
+    ["Ritual aprendido", "padrão", "Conjura um ritual de {el}: {h} num alvo em alcance médio (Vontade DT {dt} reduz à metade). Perde 1d4 de Sanidade."],
+    ["Kit de investigação", "—", "Sempre tem lanterna UV, luvas e sacos de evidência; +5 para achar pistas."],
+    ["Interrogatório", "completa", "Intimidação contra a Vontade de um prisioneiro: se vencer, ele conta o que sabe."],
+    ["Plano B", "1×/cena", "Quando as coisas dão errado, revela uma saída preparada: granada de fumaça, carro ligado, porta destrancada."],
+    ["Olhar treinado", "passiva", "+5 em Intuição; percebe disfarces e possessões em quem examinar por 1 rodada."],
+    ["Componentes", "livre", "Gasta um componente ritualístico para somar +5 na DT de um ritual."],
+    ["Fuga calculada", "reação", "Abaixo da metade dos PV, recua até 9m sem sofrer ataques de oportunidade."],
+    ["Selo de contenção", "completa", "Prende uma criatura de VD até {vd} num círculo de sigilos por 1d4 rodadas (Vontade da criatura contra DT {dt})."],
+  ],
+  assombracao: [
+    ["Incorpórea", "passiva", "Atravessa paredes e objetos. Só sofre metade do dano que não seja paranormal."],
+    ["Reviver a morte", "padrão", "Um alvo em alcance curto sente como ela morreu: {h} mental (Vontade DT {dt} reduz à metade)."],
+    ["Frio da cova", "passiva", "Quem começar o turno adjacente a ela sofre {d} de frio."],
+    ["Poltergeist", "padrão", "Arremessa objetos do lugar contra até dois alvos: {h} de impacto dividido entre eles (Reflexos DT {dt} reduz à metade)."],
+    ["Possessão", "1×/cena", "Entra no corpo de alguém adjacente (Vontade DT {dt}): controla as ações dele por 1 rodada."],
+    ["Grito do fim", "1×/cena", "Grita como no dia em que morreu: todos em alcance médio fazem Vontade DT {dt} ou ficam apavorados por 1 rodada."],
+    ["Presa ao lugar", "passiva", "Não sai do local onde morreu; quem a atrai para longe dali a enfraquece (−5 na Defesa)."],
+    ["Some e volta", "movimento", "Desaparece e reaparece em qualquer ponto do lugar onde morreu."],
+    ["Mensagem", "livre", "Escreve no vapor, na poeira ou no sangue uma palavra que é uma pista (ou uma ameaça)."],
   ],
 };
 const CHEFE = [
@@ -176,7 +226,7 @@ const CHEFE = [
 const LACAIO = ["Lacaio", "passiva", "Cai ao sofrer qualquer dano que passe da metade dos PV de uma vez."];
 
 export function habTxt([n, a, t], ctx) {
-  const txt = t.replaceAll("{dt}", ctx.dt).replaceAll("{d}", ctx.d).replaceAll("{h}", ctx.h).replaceAll("{c}", ctx.c).replaceAll("{vd}", ctx.vd);
+  const txt = t.replaceAll("{dt}", ctx.dt).replaceAll("{d}", ctx.d).replaceAll("{h}", ctx.h).replaceAll("{c}", ctx.c).replaceAll("{vd}", ctx.vd).replaceAll("{el}", ctx.el || "Sangue");
   return `${n}${a && a !== "—" ? ` (${a})` : ""}: ${txt}`;
 }
 function sortearHabs(ctx) {
@@ -236,6 +286,24 @@ export const L = {
     ferido: ["Faz uma reverência e cai.", "Pede um último aplauso.", "Some numa nuvem de fumaça.", "Chama os outros artistas para o picadeiro."],
     saque: ["ingressos amarelados com datas impossíveis", "baralho marcado", "chave da jaula dos leões", "um nariz vermelho que ainda está quente", "fotografia da trupe com um rosto riscado"],
   },
+  agente: {
+    quem: [["Agente de uma organização rival", "Agente de uma organização rival", "Pistola"], ["Caçador de recompensas do oculto", "Caçadora de recompensas do oculto", "Escopeta"], ["Investigador particular do paranormal", "Investigadora particular do paranormal", "Revólver"], ["Agente da Ordem infiltrado", "Agente da Ordem infiltrada", "Pistola"], ["Ex-agente da Ordem que virou mercenário", "Ex-agente da Ordem que virou mercenária", "Submetralhadora"], ["Ocultista independente", "Ocultista independente", "Adaga ritual"], ["Repórter que investiga o circo", "Repórter que investiga o circo", "Revólver"]],
+    aparencia: ["sobretudo cheio de bolsos e cheiro de vela", "luvas de couro e um caderno de capa preta", "óculos remendados com fita", "um colar de chaves antigas", "terno escuro e um distintivo sem nome", "mochila de acampamento com sigilos pintados à mão"],
+    quer: ["chegar ao centro do ritual antes dos agentes", "recuperar um item paranormal para quem o contratou", "provar que a Ordem está errada sobre o circo", "salvar alguém que está preso na lona", "registrar tudo para uma reportagem que ninguém vai publicar", "destruir o culto, custe o que custar"],
+    segredo: ["trabalha para o culto sem saber", "já matou um agente da Ordem", "tem um diário com o mapa da lona", "está perdendo a Sanidade e esconde isso", "é parente do dono do circo", "foi expulso da Ordem por usar rituais proibidos"],
+    fala: ["“Vocês ainda acham que a Ordem tem as respostas?”", "“Eu cheguei primeiro. A pista é minha.”", "“Posso ajudar. Por um preço.”", "“Não toquem nisso. Sério.”", "“Já vi coisa pior. Acho.”"],
+    tatica: ["Evita confronto direto e usa rituais de longe.", "Atira primeiro, pergunta depois.", "Tenta negociar e só luta se for traído.", "Prepara o terreno com armadilhas e espera."],
+    ferido: ["Propõe uma trégua com informação valiosa.", "Usa o Plano B e some.", "Fica desesperado e usa um ritual perigoso demais.", "Se rende, mas guarda uma carta na manga."],
+    saque: ["diário com anotações sobre o circo", "componentes ritualísticos (2 usos)", "munição amaldiçoada (1 pente)", "um mapa da lona com rotas marcadas", "uma foto de um agente da Ordem com um X vermelho"],
+  },
+  assombracao: {
+    quem: [["Trapezista", "Trapezista"], ["Palhaço da trupe original", "Palhaça da trupe original"], ["Espectador da última noite", "Espectadora da última noite"], ["Bilheteiro", "Bilheteira"], ["Domador devorado pelas feras", "Domadora devorada pelas feras"], ["Agente da Ordem que morreu no circo", "Agente da Ordem que morreu no circo"], ["Cultista sacrificado", "Cultista sacrificada"], ["Dono do circo", "Dona do circo"]],
+    morte: ["no incêndio de 1993, preso atrás da lona", "numa queda do trapézio sem rede", "afogado no lago atrás das jaulas", "num sacrifício do culto, sem entender por quê", "durante um Hexatombe anterior", "de fome, trancado num vagão do trem"],
+    prende: ["um objeto que perdeu: um anel, um nariz vermelho, uma foto", "a última apresentação, que nunca terminou", "o nome de quem o matou, que ninguém sabe", "uma promessa que fez a alguém da família", "o corpo, que nunca foi enterrado", "o próprio medo de seguir em frente"],
+    fala: ["“Vocês também não conseguem sair?”", "“Ainda falta o último número.”", "“Está tão frio aqui…”", "“Quem trancou a porta? QUEM TRANCOU?”", "“Eu conheço vocês. Vocês já morreram aqui.”"],
+    tatica: ["Assusta primeiro; só ataca quem mexe no que é dela.", "Possui o agente mais fraco e o faz atacar os outros.", "Apaga as luzes e ataca no escuro.", "Repete a própria morte e arrasta os agentes junto."],
+    ferido: ["Some e volta mais forte na próxima noite.", "Implora para que terminem o que a prende.", "Grita, e todas as luzes do lugar estouram.", "Se acalma e aponta uma pista."],
+  },
   animal: {
     aparencia: ["pelagem falhada e olhos turvos", "costelas aparentes de fome", "cicatrizes de corrente no pescoço", "dentes manchados de vermelho", "comportamento estranhamente silencioso"],
     quer: ["proteger os filhotes", "comer", "defender o território", "fugir do que está na mata"],
@@ -272,8 +340,18 @@ export const L = {
   },
 };
 
-function loreDe(ctx) {
+function loreDe(ctx) { return { ...loreBase(ctx), ...social(ctx) }; }
+function loreBase(ctx) {
   const t = ctx.tipo === "possuido" ? "possuido" : ctx.base;
+  if (t === "assombracao") {
+    const A = L.assombracao; const C = L.criatura;
+    return {
+      resumo: `${ctx.quem} que morreu ${pick(A.morte)}. O que ${gen(ctx, "o", "a")} prende aqui: ${pick(A.prende)}.`,
+      sinais: pick(C.sinais[ctx.el] || C.sinais.Morte), tatica: pick(A.tatica), ferido: pick(A.ferido),
+      segredo: `Segredo: ${pick(["sabe quem começou o incêndio", "viu o primeiro Hexatombe", "conhece a saída da lona, mas não pode passar por ela", "ainda tem família viva entre os sobreviventes", "não morreu sozinho: há outros presos aqui"])}.`,
+      fala: pick(A.fala), saque: "",
+    };
+  }
   if (t === "Sangue" || t === "Morte" || t === "Conhecimento" || t === "Energia" || t === "Medo") {
     const C = L.criatura; const el = t;
     return {
@@ -301,6 +379,60 @@ function loreDe(ctx) {
   };
 }
 
+/* ---------- Atitude e gancho (pessoas e assombrações) ---------- */
+export const ATITUDES = [
+  ["Hostil", "ataca ou foge assim que vê os agentes", 1], ["Desconfiada", "fala pouco e quer saber quem mandou os agentes", 3],
+  ["Indiferente", "não quer se envolver, mas pode ser convencida", 3], ["Curiosa", "faz perguntas e oferece algo em troca de respostas", 2],
+  ["Prestativa", "ajuda, mas pede algo depois", 1],
+];
+const GANCHOS = [
+  "uma pista sobre onde fica o altar do culto", "comida e água para um dia, em troca de proteção", "um atalho por baixo da lona",
+  "o nome de um cultista infiltrado entre os sobreviventes", "uma chave que ninguém sabe o que abre", "o horário em que as criaturas saem",
+  "um item paranormal que não sabe usar", "o paradeiro de uma pessoa desaparecida", "um segredo de outra equipe do Hexatombe",
+  "o caminho para um lugar seguro para passar a noite",
+];
+const PEDIDOS = [
+  "que levem uma carta para alguém lá fora", "que encontrem uma pessoa da família", "que destruam um objeto amaldiçoado",
+  "que não contem a ninguém que {o} viram", "que matem uma criatura que {o} persegue", "que {o} deixem ir junto",
+  "remédio para um ferimento que está infeccionando", "que recuperem algo que ficou num lugar perigoso",
+];
+function pesado(l) { const tot = l.reduce((s, x) => s + x[2], 0); let r = Math.random() * tot; for (const x of l) { r -= x[2]; if (r <= 0) return x; } return l[0]; }
+function social(ctx) {
+  if (ctx.tipo === "assombracao") return { atitude: `${pick(["Confusa", "Triste", "Furiosa", "Assustada"])}: não sabe que morreu, ou sabe bem demais.`, gancho: `Pode mostrar ${pick(GANCHOS)}.`, pedido: `Para descansar, precisa que resolvam o que a prende.` };
+  if (!PESSOAS.includes(ctx.tipo)) return {};
+  let at = pesado(ATITUDES);
+  if (ctx.tipo === "cultista" && chance(0.7)) at = ATITUDES[0];
+  if (ctx.tipo === "possuido" && chance(0.5)) at = ATITUDES[0];
+  return { atitude: `${at[0]}: ${at[1]} (Diplomacia DT ${ctx.dt} para melhorar um passo).`, gancho: `Pode oferecer ${pick(GANCHOS)}.`, pedido: `Pede ${pick(PEDIDOS).replaceAll("{o}", gen(ctx, "o", "a"))}.` };
+}
+
+/* ---------- Traços especiais (opcional) ---------- */
+export const TRACOS = [
+  // [nome, efeito, aplicar, só para pessoas]
+  ["Blindado", "+3 na Defesa e RD 3 contra corte e impacto.", (g) => { g.def += 3; }],
+  ["Enorme", "Uma categoria de tamanho maior: +50% de PV, −2 na Defesa e alcance de 3m.", (g) => { g.pv = Math.round(g.pv * 1.5); g.def -= 2; }],
+  ["Veloz", "+6m de deslocamento e +5 na Iniciativa.", (g) => { g.cri.desl = g.cri.desl.replace(/^(\d+)m/, (_, n) => `${Number(n) + 6}m`); g.cri.ini = maisBonus(g.cri.ini, 5); }],
+  ["Ferido", "Começa a cena com metade dos PV e luta com desespero (+1 dado no dano).", (g) => { g.pvInicial = Math.ceil(g.pv / 2); }],
+  ["Esperto", "Antecipa os agentes: +5 em Percepção e não pode ser flanqueado.", (g) => { g.cri.per = maisBonus(g.cri.per, 5); }],
+  ["Marcado pelo Outro Lado", "Tem um sigilo que brilha: rituais contra ele custam +1 PE e ele tem RD 5 contra o elemento do sigilo.", () => {}],
+  ["Faminto", "Só pensa em comer: se oferecerem comida, para de lutar por 1 rodada (Vontade DT 15 para resistir).", () => {}, "vivo"],
+  ["Covarde", "Foge na primeira rodada em que sofrer dano; se cercado, se rende.", () => {}],
+  ["Imparável", "Ignora a primeira condição que sofreria em cada cena.", () => {}],
+  ["Sanguinário", "Ataca sempre quem estiver caído ou morrendo, se puder.", () => {}],
+  ["Duas armas", "Faz um ataque extra a cada turno com −5.", (g) => { const a = g.cri.atq[0]; if (a) g.cri.atq.push([`${a[0]} (2ª arma)`, ajusta(a[1], -5), a[2], a[3]]); }, "pessoa"],
+  ["Carrega um tesouro", "Leva algo valioso: um item paranormal, comida para dois dias ou a chave de uma área trancada.", () => {}, "pessoa"],
+];
+function maisBonus(expr, n) { const m = /^(\d+d20)([+-]\d+)?$/.exec(expr || ""); if (!m) return expr; const b = (Number(m[2]) || 0) + n; return `${m[1]}${b ? (b > 0 ? "+" : "") + b : ""}`; }
+export function aplicarTraco(g, nome) {
+  const tp = g._ctx?.tipo || "";
+  const ok = (x) => !x[3] || (x[3] === "pessoa" ? PESSOAS.includes(tp) : PESSOAS.includes(tp) || tp === "animal");
+  const t = nome ? TRACOS.find((x) => x[0] === nome) : pick(TRACOS.filter(ok)); if (!t) return g;
+  if (g.traco) return g; // um traço por NPC
+  t[2](g); g.traco = t[0];
+  g.cri.hab = [`Traço — ${t[0]}: ${t[1]}`, ...g.cri.hab];
+  return g;
+}
+
 /* ---------- Números ---------- */
 function ajusta(expr, extra) { // "2d20+8" com +2
   const m = /^(\d+d20)([+-]\d+)?$/.exec(expr); if (!m) return expr;
@@ -308,7 +440,7 @@ function ajusta(expr, extra) { // "2d20+8" com +2
 }
 function maisDado(expr, d) { const m = /^(\d+)d(\d+)(.*)$/.exec(expr); return m ? `${Math.max(1, Number(m[1]) + d)}d${m[2]}${m[3]}` : expr; }
 
-export function gerarNpc({ tipo = "humano", vd = 40, papel = "comum" } = {}) {
+export function gerarNpc({ tipo = "humano", vd = 40, papel = "comum", el: elFixo = "", traco = "" } = {}) {
   vd = TAB[vd] ? vd : 40; const T = TAB[vd];
   if (!TIPOS.some(([k]) => k === tipo)) tipo = "humano";
   let pv = T.pv, def = T.def, atqT = T.t, dano = T.dano;
@@ -319,6 +451,7 @@ export function gerarNpc({ tipo = "humano", vd = 40, papel = "comum" } = {}) {
   const fixas = [];
   let nome;
 
+  const elDe = () => (ELEMENTOS.includes(elFixo) ? elFixo : pick(ELEMENTOS));
   if (tipo === "humano" || tipo === "civil" || tipo === "circo") {
     const q = pick(L[tipo].quem); const quem = gen(ctx, q[0], q[1]); const arma = q[2]; ctx.quem = quem; ctx.assinatura = q[3] || "";
     nome = nomePessoa(ctx.g);
@@ -342,7 +475,7 @@ export function gerarNpc({ tipo = "humano", vd = 40, papel = "comum" } = {}) {
     }
   } else if (tipo === "cultista") {
     const q = pick(L.cultista.quem); const quem = gen(ctx, q[0], q[1]); ctx.quem = quem;
-    const el = pick(ELEMENTOS); ctx.el = el;
+    const el = elDe(); ctx.el = el;
     nome = `${pick(gen(ctx, ["Irmão", "Discípulo", "Escolhido", "Devoto"], ["Irmã", "Discípula", "Escolhida", "Devota", "Iniciada"]))} ${pick(NOMES[ctx.g])}`;
     cri.tipo = `${quem} (Ocultista de ${el})`;
     cri.res = { Fortitude: T.ruim, Reflexos: T.ruim, Vontade: T.bom };
@@ -351,8 +484,31 @@ export function gerarNpc({ tipo = "humano", vd = 40, papel = "comum" } = {}) {
     cri.extra.push([`Ritual de ${el} (${rit})`, rit]);
     fixas.push(`Conjura rituais de ${el} (DT ${ctx.dt}). Custa a própria vida: perde 1d6 PV por ritual.`);
     cri.attrs = atributos(vd, { INT: 1, PRE: 1, FOR: -1 });
+  } else if (tipo === "agente") {
+    const q = pick(L.agente.quem); const quem = gen(ctx, q[0], q[1]); const arma = q[2]; ctx.quem = quem;
+    const el = elDe(); ctx.el = el;
+    nome = nomePessoa(ctx.g);
+    cri.tipo = `${quem} (Pessoa Média)`;
+    cri.res = { Fortitude: T.ruim, Reflexos: T.bom, Vontade: T.bom };
+    cri.ini = ajusta(T.bom, 2);
+    if (/Adaga/.test(arma)) { cri.atq.push([arma, atqT, dano, `corte + ${el}`]); cri.extra.push([`Ritual de ${el} (${DANO_HAB[vd]})`, DANO_HAB[vd]]); }
+    else cri.atq.push([arma, atqT, dano, "balístico"], ["Faca de combate", ajusta(atqT, -2), maisDado(dano, -1), "corte"]);
+    fixas.push(`Conhece o paranormal: rituais e criaturas de ${el} não o pegam de surpresa.`);
+    cri.attrs = atributos(vd, { INT: 1, AGI: 1, FOR: -1 });
+  } else if (tipo === "assombracao") {
+    const el = pick(["Morte", "Morte", "Sangue", "Energia", "Conhecimento"]); ctx.el = el;
+    const q = pick(L.assombracao.quem); const quem = gen(ctx, q[0], q[1]); ctx.quem = quem;
+    nome = `${gen(ctx, "O", "A")} ${pick(gen(ctx, ["Pálido", "Molhado", "Queimado", "Sem Olhos", "que Chora", "que Bate à Porta", "Sorridente", "Sem Voz"], ["Pálida", "Molhada", "Queimada", "Sem Olhos", "que Chora", "que Bate à Porta", "Sorridente", "Sem Voz"]))}${chance(0.5) ? ` ${pick(LUGARES)}` : ""}`;
+    cri.tipo = `Assombração de ${el} (${quem})`;
+    cri.res = { Fortitude: T.ruim, Reflexos: T.bom, Vontade: T.bom };
+    pv = Math.round(pv * 0.8); def += 1;
+    const x = vd >= 120 ? 10 : vd >= 40 ? 5 : 2;
+    cri.rd = `Todo dano não paranormal ${x} · ${el} ${x * 2}`; cri.vuln = FRACO[el]; cri.pp = T.pp; cri.desl = "9m, voo, atravessa paredes";
+    cri.atq.push(["Toque gelado", atqT, `${maisDado(dano, -1)}+${DADO_EL[vd]}`, `frio + ${el}`]);
+    fixas.push("Incorpórea: atravessa paredes; dano não paranormal é reduzido à metade.");
+    cri.attrs = atributos(vd, { PRE: 2, FOR: -2, VIG: -1 });
   } else if (tipo === "possuido") {
-    const el = pick(ELEMENTOS); ctx.el = el;
+    const el = elDe(); ctx.el = el;
     const q = pick(L.humano.quem); const quem = gen(ctx, q[0], q[1]); ctx.quem = quem;
     nome = `${nomePessoa(ctx.g)}, ${pick(gen(ctx, ["o que volta", "o marcado", "o que sorri", "o sem sombra", "o que não dorme"], ["a que volta", "a marcada", "a que sorri", "a sem sombra", "a que não dorme"]))}`;
     cri.tipo = `${quem} ${gen(ctx, "tomado", "tomada")} por ${el} (Pessoa Média)`;
@@ -365,14 +521,16 @@ export function gerarNpc({ tipo = "humano", vd = 40, papel = "comum" } = {}) {
     cri.atq.push([golpe, atqT, `${dano}+${DADO_EL[vd]}`, el]);
     cri.attrs = atributos(vd, { VIG: 1, INT: -1 });
   } else if (tipo === "animal") {
-    const ANIMAIS = [["Cão selvagem", "Mordida", "corte"], ["Javali", "Presas", "perfuração"], ["Onça", "Garras", "corte"], ["Urubu gigante", "Bicada", "perfuração"], ["Jacaré", "Mordida", "perfuração"], ["Lobo-guará", "Mordida", "corte"], ["Leão do circo", "Garras", "corte"], ["Urso de picadeiro", "Patada", "impacto"], ["Cobra-d'água", "Picada", "perfuração"], ["Bando de ratos", "Mordidas", "corte"]];
+    const ANIMAIS = [["Cão selvagem", "Mordida", "corte"], ["Javali", "Presas", "perfuração"], ["Onça", "Garras", "corte"], ["Urubu gigante", "Bicada", "perfuração"], ["Jacaré", "Mordida", "perfuração"], ["Lobo-guará", "Mordida", "corte"], ["Leão do circo", "Garras", "corte"], ["Urso de picadeiro", "Patada", "impacto"], ["Cobra-d'água", "Picada", "perfuração"], ["Bando de ratos", "Mordidas", "corte"], ["Elefante do circo", "Pisão", "impacto"], ["Tigre de picadeiro", "Garras", "corte"], ["Enxame de corvos", "Bicadas", "perfuração"], ["Cavalo assustado", "Coice", "impacto"], ["Macaco do realejo", "Mordida", "corte"]];
     const [n, golpe, td] = pick(ANIMAIS); nome = n; ctx.nome = n;
-    cri.tipo = /Bando/.test(n) ? "Bando de animais Pequenos" : /Leão|Urso|Jacaré/.test(n) ? "Animal Grande" : "Animal Médio";
-    cri.res = { Fortitude: T.bom, Reflexos: T.bom, Vontade: T.ruim }; cri.desl = /Urubu/.test(n) ? "3m, voo 12m" : /Cobra|Jacaré/.test(n) ? "6m, natação 12m" : "12m";
+    cri.tipo = /Bando|Enxame/.test(n) ? "Bando de animais Pequenos" : /Leão|Urso|Jacaré|Tigre|Cavalo/.test(n) ? "Animal Grande" : /Elefante/.test(n) ? "Animal Enorme" : /Macaco/.test(n) ? "Animal Pequeno" : "Animal Médio";
+    if (/Elefante/.test(n)) { pv = Math.round(pv * 1.6); def -= 3; }
+    cri.res = { Fortitude: T.bom, Reflexos: T.bom, Vontade: T.ruim }; cri.desl = /Urubu|corvos/.test(n) ? "3m, voo 12m" : /Cobra|Jacaré/.test(n) ? "6m, natação 12m" : "12m";
     cri.atq.push([golpe, atqT, dano, td]);
     cri.attrs = atributos(vd, { AGI: 1, FOR: 1, INT: -3, PRE: -1 });
   } else {
     const el = tipo; ctx.el = el;
+    if (tipo === "Medo") ctx.el = "Medo";
     const NOME_CRI = {
       Sangue: ["Carniçal", "Devorador", "Retalhado", "Bocarra", "Abatedor", "Costurado", "Coração Aberto", "Mandíbula"],
       Morte: ["Lodento", "Ampulheta", "Apodrecido", "Cinzento", "Esquecido", "Espiral", "Enlutado", "Ponteiro"],
@@ -398,10 +556,16 @@ export function gerarNpc({ tipo = "humano", vd = 40, papel = "comum" } = {}) {
   const g = { nome, pv, def, cri, _ctx: ctx, _fixas: fixas };
   cri.hab = [...fixas, ...sortearHabs(ctx)];
   cri.lore = loreDe(ctx);
+  if (traco === "sortear" || (traco && traco !== "nenhum")) aplicarTraco(g, traco === "sortear" ? "" : traco);
+  ctx.traco = g.traco || "";
   return g;
 }
 /* Sorteia de novo só uma parte, mantendo o resto */
-export function outrasHabilidades(g) { if (!g?._ctx) return g; g.cri.hab = [...(g._fixas || []), ...sortearHabs(g._ctx)]; return g; }
+export function outrasHabilidades(g) {
+  if (!g?._ctx) return g;
+  const tr = g.cri.hab.find((h) => String(h).startsWith("Traço — "));
+  g.cri.hab = [...(tr ? [tr] : []), ...(g._fixas || []), ...sortearHabs(g._ctx)]; return g;
+}
 export function outraHistoria(g) { if (!g?._ctx) return g; g.cri.lore = loreDe({ ...g._ctx, nome: g.nome }); return g; }
 export function outroNome(g) {
   if (!g?._ctx || g._ctx.tipo === "animal") return g; // o nome do animal é a espécie
@@ -413,5 +577,5 @@ export function outroNome(g) {
 /* Texto da história, para copiar e para mostrar no combate */
 export function loreTexto(l) {
   if (!l) return [];
-  return [l.resumo, l.sinais && `Sinais: ${l.sinais}`, l.fala && `Fala: ${l.fala}`, l.tatica && `Em combate: ${l.tatica}`, l.ferido && `Ferido: ${l.ferido}`, l.segredo, l.saque && `Carrega: ${l.saque}`].filter(Boolean);
+  return [l.resumo, l.sinais && `Sinais: ${l.sinais}`, l.fala && `Fala: ${l.fala}`, l.atitude && `Atitude: ${l.atitude}`, l.gancho, l.pedido, l.tatica && `Em combate: ${l.tatica}`, l.ferido && `Ferido: ${l.ferido}`, l.segredo, l.saque && `Carrega: ${l.saque}`].filter(Boolean);
 }
