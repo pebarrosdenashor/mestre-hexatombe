@@ -4,7 +4,9 @@ import OBR from "https://cdn.jsdelivr.net/npm/@owlbear-rodeo/sdk@3.1.0/+esm";
    - no mestre: guarda todas as rolagens das fichas (inclusive as secretas) para o Escudo do Mestre
    - em todos: mostra os avisos do combate ("vez de…") e os anúncios públicos do mestre
    - em todos: abre a "caixa de som" (som.html), onde os sons tocam de verdade, e avisa quando o cronômetro acaba
-   - no mestre: menu do token "Adicionar ao combate" */
+   - no mestre: menu do token "Adicionar ao combate"
+   - em todos: abre o sussurro que o mestre mandou só para esta pessoa
+   - no mestre: guarda quem leu e quem respondeu aos sussurros */
 
 const NS = "io.github.pebarrosdenashor.mestre-hx";
 const CH = NS + "/msg";
@@ -43,7 +45,7 @@ async function abrirCaixaDeSom() {
   try {
     const h = await OBR.viewport.getHeight();
     await OBR.popover.open({
-      id: POP, url: new URL("som.html?v=1.4.0", location.href).href, width: 240, height: 52,
+      id: POP, url: new URL("som.html?v=1.5.0", location.href).href, width: 240, height: 52,
       anchorReference: "POSITION", anchorPosition: { left: 72, top: h - 12 },
       anchorOrigin: { horizontal: "LEFT", vertical: "BOTTOM" }, transformOrigin: { horizontal: "LEFT", vertical: "BOTTOM" },
       disableClickAway: true, hidePaper: true,
@@ -54,6 +56,36 @@ async function abrirCaixaDeSom() {
 let caixaViva = false, meuId = "";
 function vigiarCaixa() { setTimeout(() => { if (!caixaViva) abrirCaixaDeSom(); }, 15000); }
 function tocar(k) { OBR.broadcast.sendMessage(CH, { kind: "som", k }, { destination: "LOCAL" }).catch(() => {}); }
+
+/* ---------- Sussurros ---------- */
+const SUS_POP = NS + "/sussurro";
+async function abrirSussurro(d) {
+  try {
+    const w = await OBR.viewport.getWidth();
+    const linhas = Math.ceil(String(d.txt || "").length / 42) + String(d.txt || "").split("\n").length;
+    const h = Math.min(420, 110 + linhas * 30 + (d.resp ? 52 : 0));
+    await OBR.popover.close(SUS_POP).catch(() => {});
+    await OBR.popover.open({
+      id: SUS_POP, url: new URL("sussurro.html?v=1.5.0", location.href).href + "#d=" + encodeURIComponent(JSON.stringify({ sid: d.sid, txt: d.txt, estilo: d.estilo, resp: !!d.resp })),
+      width: Math.min(560, Math.max(320, w - 40)), height: h,
+      anchorReference: "POSITION", anchorPosition: { left: Math.round(w / 2), top: 70 },
+      anchorOrigin: { horizontal: "CENTER", vertical: "TOP" }, transformOrigin: { horizontal: "CENTER", vertical: "TOP" },
+      disableClickAway: true, hidePaper: true,
+    });
+    if (d.som) tocar(String(d.som));
+  } catch { /* */ }
+}
+function guardarSus(d, campo) {
+  const k = `${NS}:sus:${roomId}`;
+  try {
+    const all = JSON.parse(localStorage.getItem(k) || "{}"); const r = (all[d.sid] ||= { lidos: {}, resp: [] });
+    if (campo === "lido") r.lidos[d.de] = d.nome || "?";
+    else { r.lidos[d.de] = d.nome || "?"; r.resp.push({ de: d.de, nome: String(d.nome || "?").slice(0, 60), txt: String(d.txt || "").slice(0, 300), at: Date.now() }); }
+    const ids = Object.keys(all); if (ids.length > 60) for (const x of ids.slice(0, ids.length - 60)) delete all[x];
+    localStorage.setItem(k, JSON.stringify(all));
+  } catch { /* */ }
+  if (campo === "resp") OBR.notification.show(`💬 ${d.nome || "Alguém"} respondeu ao sussurro: “${String(d.txt || "").slice(0, 90)}”`);
+}
 
 /* ---------- Cronômetro (guardado na sala) ---------- */
 let timerAlarme = null, timerFim = 0;
@@ -109,6 +141,9 @@ OBR.onReady(async () => {
     const d = ev.data || {};
     if ((d.kind === "turno" || d.kind === "anuncio") && d.text) OBR.notification.show(d.text);
     if (d.kind === "ouvinte" && d.id === meuId) caixaViva = true;
+    if (d.kind === "sussurro" && Array.isArray(d.para) && d.para.includes(meuId)) abrirSussurro(d);
+    if (d.kind === "susLido" && role === "GM" && d.sid) guardarSus(d, "lido");
+    if (d.kind === "susResp" && role === "GM" && d.sid) guardarSus(d, "resp");
     // o mestre avisou que esta pessoa está sem som
     if (d.kind === "aviso" && Array.isArray(d.ids) && d.ids.includes(meuId)) {
       OBR.notification.show(d.text || "🔇 Clique no botão de som no canto de baixo, à esquerda, para ouvir o mestre.", "WARNING");

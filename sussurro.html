@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sussurro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600&family=Crimson+Pro:ital,wght@0,400;1,400&family=Special+Elite&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; font: 14px/1.4 Roboto, system-ui, sans-serif; color: #eee; }
+    #caixa { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 10px; padding: 18px 20px 14px; border-radius: 14px;
+      opacity: 0; transition: opacity .9s ease; overflow: hidden; }
+    #caixa.on { opacity: 1; }
+    #caixa.sai { opacity: 0; transition-duration: 1.4s; }
+    #rotulo { font-family: Cinzel, serif; letter-spacing: .2em; font-size: 11px; text-transform: uppercase; opacity: .7; }
+    #texto { flex: 1; overflow: auto; font-size: 21px; line-height: 1.45; white-space: pre-wrap; word-wrap: break-word; }
+    #texto span { display: inline-block; white-space: pre; opacity: 0; }
+    #texto i.w { font-style: inherit; white-space: nowrap; display: inline-block; }
+    #texto span.v { opacity: 1; transition: opacity .5s, filter .6s, transform .6s; }
+    #fechar { position: absolute; top: 8px; right: 10px; background: none; border: 0; color: inherit; opacity: .55; font-size: 16px; cursor: pointer; padding: 4px 6px; }
+    #fechar:hover, #fechar:focus-visible { opacity: 1; outline: none; }
+    #resp { display: none; gap: 6px; }
+    #resp.on { display: flex; }
+    #resp input { flex: 1; min-width: 0; background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.2); border-radius: 6px; padding: 7px 9px; color: inherit; font: inherit; }
+    #resp input:focus { outline: none; border-color: rgba(255,255,255,.5); }
+    #resp button { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.25); color: inherit; border-radius: 6px; padding: 6px 12px; cursor: pointer; font: inherit; }
+    #enviado { font-size: 12px; opacity: .7; display: none; }
+
+    /* Sussurro: cinza, letras chegando devagar, tremendo */
+    .sussurro { background: radial-gradient(ellipse at 30% 0%, rgba(60,60,70,.92), rgba(8,8,10,.94)); box-shadow: 0 0 40px rgba(0,0,0,.8), inset 0 0 30px rgba(0,0,0,.6); color: #d8d8e0; }
+    .sussurro #texto { font-family: "Crimson Pro", Georgia, serif; font-style: italic; text-shadow: 0 0 8px rgba(200,200,220,.35); }
+    .sussurro #texto span { filter: blur(4px); transform: translateY(4px); }
+    .sussurro #texto span.v { filter: blur(0); transform: none; animation: treme 2.6s ease-in-out infinite; }
+    @keyframes treme { 0%, 100% { transform: translate(0, 0); } 20% { transform: translate(.4px, -.3px); } 40% { transform: translate(-.3px, .4px); } 60% { transform: translate(.3px, .2px); } 80% { transform: translate(-.4px, -.2px); } }
+
+    /* Voz do Outro Lado: vermelho, letras embaralhando antes de assentar */
+    .outro { background: radial-gradient(ellipse at 50% 120%, rgba(110,0,18,.95), rgba(14,2,4,.96) 70%); box-shadow: 0 0 50px rgba(200,16,46,.45), inset 0 0 0 1px rgba(200,16,46,.6); color: #ffd9de; }
+    .outro #texto { font-family: Cinzel, serif; font-size: 22px; letter-spacing: .04em; text-shadow: 1.5px 0 rgba(255,0,60,.7), -1.5px 0 rgba(0,200,255,.35); }
+    .outro #rotulo { color: #ff6b7d; opacity: 1; }
+    .outro.glitch #texto { animation: glitch .18s steps(2) 3; }
+    @keyframes glitch { 0% { transform: translate(2px, 0) skewX(4deg); } 50% { transform: translate(-3px, 1px) skewX(-6deg); filter: hue-rotate(40deg); } 100% { transform: none; } }
+
+    /* Pensamento intrusivo: azul frio, palavras surgindo */
+    .pensamento { background: linear-gradient(160deg, rgba(10,24,40,.93), rgba(4,8,14,.95)); box-shadow: 0 0 40px rgba(47,158,209,.25), inset 0 0 0 1px rgba(47,158,209,.35); color: #cfe9f7; }
+    .pensamento #texto { font-family: "Crimson Pro", Georgia, serif; font-style: italic; font-size: 22px; }
+    .pensamento #texto span { filter: blur(6px); }
+    .pensamento #texto span.v { filter: blur(0); }
+
+    /* Bilhete: papel e máquina de escrever */
+    .bilhete { background: #e9dfc9; color: #2a1f17; box-shadow: 0 0 0 1px #b9a786, 6px 8px 0 rgba(0,0,0,.55); border-radius: 3px; transform: rotate(-.6deg); }
+    .bilhete #texto { font-family: "Special Elite", "Courier New", monospace; font-size: 18px; }
+    .bilhete #rotulo { color: #7a1020; opacity: .9; }
+    .bilhete #resp input { background: rgba(255,255,255,.5); border-color: #b9a786; }
+    .bilhete #resp button { background: #2a1f17; color: #e9dfc9; }
+
+    @media (prefers-reduced-motion: reduce) {
+      #texto span, #texto span.v { animation: none !important; filter: none !important; transform: none !important; transition: none !important; }
+      .outro.glitch #texto { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="caixa" role="dialog" aria-live="polite" aria-labelledby="rotulo">
+    <div id="rotulo"></div>
+    <button id="fechar" title="Fechar" aria-label="Fechar">✕</button>
+    <div id="texto"></div>
+    <form id="resp"><input id="respTxt" maxlength="300" placeholder="Responder ao mestre (só ele vê)…" autocomplete="off"><button type="submit">Enviar</button></form>
+    <div id="enviado">Resposta enviada ao mestre.</div>
+  </div>
+  <script type="module" src="sussurro.js?v=1.5.0"></script>
+</body>
+</html>

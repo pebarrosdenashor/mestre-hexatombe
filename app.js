@@ -1,9 +1,9 @@
 import OBR, { buildShape } from "https://cdn.jsdelivr.net/npm/@owlbear-rodeo/sdk@3.1.0/+esm";
-import { CONDICOES, ESTIGMAS, BESTIARIO } from "./dados.js?v=1.4.0";
-import { EFEITOS, AMBIENTES, tocar as tocarLocal, setVolume as setVolLocal } from "./sons.js?v=1.4.0";
-import { gerarEquipe, outroMembro, outraHistoriaEquipe, equipeTexto, membroTexto, NEXS, TEMAS, COMPOSICOES } from "./equipe.js?v=1.4.0";
-import { gerarNpc, VDS, TIPOS, PAPEIS, TRACOS, aplicarTraco, outrasHabilidades, outraHistoria, outroNome, loreTexto } from "./gerador.js?v=1.4.0";
-import { gerarEncontro, cenaEncontro, outroGrupo, encontroTexto, TEMAS_ENC, DIFICULDADES, ELEMENTOS_ENC, PAPEL_NOME } from "./encontro.js?v=1.4.0";
+import { CONDICOES, ESTIGMAS, BESTIARIO } from "./dados.js?v=1.5.0";
+import { EFEITOS, AMBIENTES, tocar as tocarLocal, tocarUrl as tocarUrlLocal, setVolume as setVolLocal } from "./sons.js?v=1.5.0";
+import { gerarEquipe, outroMembro, outraHistoriaEquipe, equipeTexto, membroTexto, NEXS, TEMAS, COMPOSICOES } from "./equipe.js?v=1.5.0";
+import { gerarNpc, VDS, TIPOS, PAPEIS, TRACOS, aplicarTraco, outrasHabilidades, outraHistoria, outroNome, loreTexto } from "./gerador.js?v=1.5.0";
+import { gerarEncontro, cenaEncontro, outroGrupo, encontroTexto, TEMAS_ENC, DIFICULDADES, ELEMENTOS_ENC, PAPEL_NOME } from "./encontro.js?v=1.5.0";
 
 /* =========================================================
    Escudo do Mestre — Hexatombe (Owlbear Rodeo)
@@ -27,6 +27,10 @@ const HX_NS = "io.github.pebarrosdenashor.hexatombe";
 const PUB_KEY = NS + "/publico";   // na sala: relógios, cronômetro e ambiente que todos veem/ouvem
 const CENA_KEY = NS + "/cena";     // na cena: só um identificador, para as notas por cena
 const FILA = () => `${NS}:fila:${roomId}`; // tokens mandados ao combate pelo menu do token
+const FICHA_CFG = FICHA_NS + "/cfg";  // na sala: efeitos visuais das fichas (animação de ritual, críticos na tela de todos)
+const susKey = () => `${NS}:sus:${roomId}`; // quem leu / respondeu aos sussurros (o fundo grava)
+const SUS_ESTILOS = [["sussurro", "🌫 Sussurro (letra por letra, tremendo)"], ["outro", "🩸 Voz do Outro Lado (vermelho, embaralhado)"], ["pensamento", "❄ Pensamento intrusivo (azul, palavra por palavra)"], ["bilhete", "📜 Bilhete (papel)"]];
+const SUS_SONS = [["sussurros", "🗣 com sussurros"], ["respiracao", "😮‍💨 com respiração"], ["estatica", "📻 com estática"], ["coracao", "❤ com coração"], ["caixinha", "🎶 com caixinha"], ["", "🔇 sem som"]];
 
 /* ---------- Regras (iguais às da ficha) ---------- */
 const ATTRS = [["FOR", "Força"], ["AGI", "Agilidade"], ["INT", "Intelecto"], ["VIG", "Vigor"], ["PRE", "Presença"]];
@@ -99,12 +103,15 @@ const logKey = () => `${NS}:log:${roomId}`;
 
 function defMine() {
   return { combate: { lista: [], vez: 0, rodada: 1, ativo: false, anel: true, anunciar: true, seguir: false }, ocultas: [], notas: "", soOnline: false, undo: [],
-    npcs: [], cenas: {}, relogios: [], timer: null, amb: { loops: [], url: "", urlVol: 0.6 }, gen: { tipo: "Sangue", vd: 40, papel: "comum", traco: "nenhum" } };
+    npcs: [], cenas: {}, relogios: [], timer: null, amb: { loops: [], url: "", urlVol: 0.6, vols: {} }, gen: { tipo: "Sangue", vd: 40, papel: "comum", traco: "nenhum" },
+    sonsLink: [], cenasSom: [], susFav: [], sussurros: [] };
 }
 let mine = defMine();
 function loadMine() {
   const m = readJSON(mineKey(), null); const d = defMine();
   mine = { ...d, ...(m || {}), combate: { ...d.combate, ...(m?.combate || {}) }, amb: { ...d.amb, ...(m?.amb || {}) }, gen: { ...d.gen, ...(m?.gen || {}) } };
+  for (const k of ["sonsLink", "cenasSom", "susFav", "sussurros"]) if (!Array.isArray(mine[k])) mine[k] = [];
+  mine.amb.vols ||= {};
 }
 function saveMine() { lsSet(mineKey(), JSON.stringify(mine)); }
 
@@ -304,6 +311,8 @@ function softRender() {
   render();
 }
 $app.addEventListener("focusout", () => { if (pending) { pending = false; setTimeout(softRender, 50); } });
+// lembra quais <details data-keep> estão abertos entre um desenho e outro
+$app.addEventListener("toggle", (e) => { const k = e.target?.dataset?.keep; if (k) ui[k] = e.target.open; }, true);
 
 /* ---------- Aba: Mesa ---------- */
 function hxResumo() {
@@ -349,7 +358,7 @@ function pcCard(s, h) {
       <div class="row wrap act"><select id="t-${s.id}">${testeOptions(ui.lastTeste || "Percepção")}</select><button data-a="testeUm" data-id="${s.id}">🙈 Rolar em segredo</button></div>
       ${ui.res1?.id === s.id ? `<div class="res">${esc(ui.res1.txt)}</div>` : ""}
       ${hexaLinhas.length ? `<ul class="hexa">${hexaLinhas.map((l) => `<li>${l}</li>`).join("")}</ul>` : ""}
-      <div class="row wrap foot"><button class="ghost" data-a="abrirFicha" data-id="${s.id}">📄 Abrir ficha</button><button class="ghost" data-a="selToken" data-id="${s.id}">📍 Token</button><button class="ghost" data-a="ocultar" data-id="${s.id}">👁 Tirar do painel</button></div>
+      <div class="row wrap foot"><button class="ghost" data-a="abrirFicha" data-id="${s.id}">📄 Abrir ficha</button><button class="ghost" data-a="selToken" data-id="${s.id}">📍 Token</button><button class="ghost" data-a="ocultar" data-id="${s.id}">👁 Tirar do painel</button>${s.owner?.id && s.owner.id !== me.id ? `<button class="ghost" data-a="susDe" data-pid="${esc(s.owner.id)}" title="Mandar um sussurro só para este jogador">🗣 Sussurrar</button>` : ""}</div>
     </div></article>`;
 }
 function viewMesa() {
@@ -366,7 +375,7 @@ function viewSecretas() {
   ui.secSel ||= Object.fromEntries(panelSheets().map((s) => [s.id, true]));
   const log = readLog().filter((e) => ui.logFiltro === "todas" || (ui.logFiltro === "secretas" ? e.secret : e.src === "mestre"));
   const r = ui.secRes;
-  return `<section class="card"><h3>Teste secreto em grupo</h3>
+  return `${viewSussurros()}<section class="card"><h3>Teste secreto em grupo</h3>
       <p class="muted small">Rola pela ficha de cada um (atributo, treino, condições e penalidades do Hexatombe). Ninguém vê: o resultado fica só aqui.</p>
       <div class="row wrap"><select id="secTeste">${testeOptions(ui.lastTeste || "Percepção")}</select>
         <input type="number" id="secBonus" class="n4" placeholder="bônus" value="${esc(ui.secBonus ?? "")}"><input type="number" id="secDT" class="n4" placeholder="DT" value="${esc(ui.secDT ?? "")}"></div>
@@ -661,16 +670,7 @@ function viewCena() {
   const a = mine.amb; const t = mine.timer;
   const cena = cenaId ? (mine.cenas[cenaId] ||= { nome: "", txt: "", at: 0 }) : null;
   const outras = Object.entries(mine.cenas).filter(([k, v]) => k !== cenaId && (v.txt || v.nome)).sort((x, y) => num(y[1].at) - num(x[1].at));
-  return `${viewOuvintes()}<section class="card"><h3>Efeitos sonoros <span class="muted small">todos ouvem</span></h3>
-      <div class="sons">${EFEITOS.map(([k, n]) => `<button data-a="som" data-k="${k}">${n}</button>`).join("")}</div>
-      <div class="row wrap small"><label class="chk"><input type="checkbox" id="somPrevia" ${ui.previa ? "checked" : ""}> Só ouvir aqui (prévia)</label></div></section>
-    <section class="card"><h3>Ambientação <span class="muted small">em laço, para todos</span></h3>
-      <div class="sons">${AMBIENTES.map(([k, n]) => `<button class="${a.loops.includes(k) ? "on" : ""}" data-a="amb" data-k="${k}">${n}</button>`).join("")}</div>
-      <div class="row"><input id="ambUrl" placeholder="Música por link (mp3/ogg)…" value="${esc(a.url)}"><button data-a="ambUrl">${a.url ? "Trocar" : "▶"}</button>${a.url ? `<button class="danger" data-a="ambUrlStop" title="Parar a música">■</button>` : ""}</div>
-      <div class="row"><span class="small muted">Volume da música</span><input type="range" min="0" max="100" step="5" id="ambVol" value="${Math.round(num(a.urlVol) * 100)}"></div>
-      ${a.loops.length || a.url ? `<div class="row"><button class="ghost danger" data-a="ambParar">■ Parar toda a ambientação</button></div>` : ""}
-      <p class="muted small">Os sons tocam pelo botão 🔊 no canto de baixo, à esquerda, na tela de cada um. Se aparecer 🔇 vermelho, a pessoa precisa clicar nele uma vez: o navegador só libera som depois de um clique. O volume de cada um fica nesse botão.</p>
-      <p class="muted small">Música por link: precisa ser um link direto para o arquivo (.mp3, .ogg). Links do YouTube, Spotify e Google Drive não funcionam.</p></section>
+  return `${viewOuvintes()}${viewMesaDeSom()}${viewAmbientacao()}
     <section class="card"><h3>Relógios de ameaça</h3>
       <div class="clocks">${mine.relogios.map((r) => `<div class="clockbox">${relogioSVG(r, true)}
         <div class="row"><button class="icon" data-a="relMenos" data-id="${esc(r.id)}">−</button><button class="icon" data-a="relMais" data-id="${esc(r.id)}">＋</button>
@@ -690,6 +690,101 @@ function viewCena() {
       ${outras.length ? `<details><summary class="small">Outras cenas (${outras.length})</summary>${outras.map(([k, v]) => `<div class="outra"><b>${esc(v.nome || "Cena sem nome")}</b><span class="muted small"> · ${v.at ? new Date(v.at).toLocaleDateString("pt-BR") : ""}</span><div class="small pre">${esc(v.txt)}</div></div>`).join("")}</details>` : ""}</section>
     <section class="card"><h3>Notas gerais</h3>
       <textarea id="notas" rows="6" placeholder="Segredos, ganchos, próximos encontros…">${esc(mine.notas)}</textarea></section>`;
+}
+
+/* ---------- Mesa de som ---------- */
+function volAmb(k) { const v = mine.amb.vols?.[k]; return v === undefined ? 1 : clamp(Number(v), 0, 1); }
+function outros() { return party.filter((p) => p.id !== me.id); }
+function chipsPara(sel, acao) {
+  const ps = outros();
+  if (!ps.length) return `<span class="muted small">Ninguém mais na sala agora.</span>`;
+  return ps.map((p) => `<button class="chip ${sel.includes(p.id) ? "on" : ""}" data-a="${acao}" data-pid="${esc(p.id)}">${esc(p.name)}${p.role === "GM" ? " (mestre)" : ""}</button>`).join("");
+}
+function viewMesaDeSom() {
+  ui.somPara = (ui.somPara || []).filter((id) => party.some((p) => p.id === id));
+  const alvo = ui.somPara.length;
+  return `<section class="card"><h3>Mesa de som <span class="muted small">${alvo ? `só ${alvo === 1 ? "1 pessoa" : `${alvo} pessoas`} ${alvo === 1 ? "ouve" : "ouvem"}` : "todos ouvem"}</span></h3>
+      <div class="para"><span class="muted small">Para:</span><button class="chip ${alvo ? "" : "on"}" data-a="somTodos">Todos</button>${chipsPara(ui.somPara, "somPara")}</div>
+      <div class="sons">${EFEITOS.map(([k, n]) => `<button data-a="som" data-k="${k}">${n}</button>`).join("")}</div>
+      ${mine.sonsLink.length ? `<div class="sons meus">${mine.sonsLink.map((x) => `<span class="meu"><button data-a="somLink" data-id="${esc(x.id)}" title="${esc(x.url)}">🔗 ${esc(x.nome)}</button><button class="icon ghost" data-a="somLinkDel" data-id="${esc(x.id)}" title="Apagar">✕</button></span>`).join("")}</div>` : ""}
+      <details ${ui.slAberto ? "open" : ""} data-keep="slAberto"><summary class="small">＋ Seu próprio som (link de áudio)</summary>
+        <div class="row"><input id="slNome" placeholder="Nome (ex.: Gargalhada)" maxlength="30"><input id="slUrl" placeholder="https://… .mp3"><button data-a="somLinkNovo">＋</button></div>
+        <p class="muted small">Link direto para .mp3 ou .ogg (o arquivo, não a página). Toca uma vez, para quem estiver marcado em “Para”.</p></details>
+      <div class="row wrap small"><label class="chk"><input type="checkbox" id="somPrevia" ${ui.previa ? "checked" : ""}> Só ouvir aqui (prévia)</label></div></section>`;
+}
+function viewAmbientacao() {
+  const a = mine.amb; const nomeAmb = (k) => (AMBIENTES.find(([x]) => x === k) || [, k])[1];
+  return `<section class="card"><h3>Ambientação <span class="muted small">em laço, para todos</span></h3>
+      <div class="sons">${AMBIENTES.map(([k, n]) => `<button class="${a.loops.includes(k) ? "on" : ""}" data-a="amb" data-k="${k}">${n}</button>`).join("")}</div>
+      ${a.loops.length ? `<div class="ambvols">${a.loops.map((k) => `<label class="row"><span class="small">${nomeAmb(k)}</span><input type="range" min="0" max="100" step="5" data-ambvol="${k}" value="${Math.round(volAmb(k) * 100)}" aria-label="Volume de ${esc(nomeAmb(k))}"></label>`).join("")}</div>` : ""}
+      <div class="row"><input id="ambUrl" placeholder="Música por link (mp3/ogg)…" value="${esc(a.url)}"><button data-a="ambUrl">${a.url ? "Trocar" : "▶"}</button>${a.url ? `<button class="danger" data-a="ambUrlStop" title="Parar a música">■</button>` : ""}</div>
+      <div class="row"><span class="small muted">Volume da música</span><input type="range" min="0" max="100" step="5" id="ambVol" value="${Math.round(num(a.urlVol) * 100)}"></div>
+      <div class="row wrap"><button class="danger" data-a="silencio" title="Para toda a ambientação, a música e os sons por link, devagar">🔇 Silêncio</button></div>
+      <div class="cenassom"><div class="small muted">Cenas sonoras guardadas</div>
+        ${mine.cenasSom.length ? `<div class="row wrap">${mine.cenasSom.map((c) => `<span class="meu"><button data-a="cenaSomUsar" data-id="${esc(c.id)}" title="${esc([...c.loops.map(nomeAmb), c.url ? "música" : ""].filter(Boolean).join(", "))}">🎭 ${esc(c.nome)}</button><button class="icon ghost" data-a="cenaSomDel" data-id="${esc(c.id)}" title="Apagar">✕</button></span>`).join("")}</div>` : `<p class="muted small">Monte um clima (ex.: vento + realejo baixinho) e guarde para trocar com um clique.</p>`}
+        <div class="row"><input id="csNome" placeholder="Nome (ex.: Picadeiro à noite)" maxlength="30"><button data-a="cenaSomSalvar" title="Guarda o que está tocando agora">💾 Guardar</button></div></div>
+      <p class="muted small">Os sons tocam pelo botão 🔊 no canto de baixo, à esquerda, na tela de cada um. Se aparecer 🔇 vermelho, a pessoa precisa clicar nele uma vez: o navegador só libera som depois de um clique. O volume de cada um fica nesse botão.</p>
+      <p class="muted small">Música por link: precisa ser um link direto para o arquivo (.mp3, .ogg). Links do YouTube, Spotify e Google Drive não funcionam.</p></section>`;
+}
+function somLink(x) {
+  if (ui.previa || !obrOk) { tocarUrlLocal(x.url, 1); return; }
+  OBR.broadcast.sendMessage(CH, { kind: "somUrl", url: x.url, vol: 1, para: ui.somPara?.length ? [...ui.somPara] : undefined }, { destination: "ALL" }).catch(() => toast("Não deu para enviar o som."));
+}
+
+/* ---------- Sussurros ---------- */
+function viewSussurros() {
+  ui.susPara = (ui.susPara || []).filter((id) => party.some((p) => p.id === id));
+  const recibos = readJSON(susKey(), {});
+  const hist = (mine.sussurros || []).slice(0, 12);
+  const status = (h) => h.para.map((p) => {
+    const r = recibos[h.id] || {}; const lido = r.lidos && p.id in r.lidos;
+    return `<span class="${lido ? "lido" : "pend"}" title="${lido ? "Leu" : "Ainda não abriu (pode estar sem a extensão ativa)"}">${lido ? "✓" : "…"} ${esc(p.nome)}</span>`;
+  }).join(" ");
+  return `<section class="card sus"><h3>🗣 Sussurros <span class="muted small">só quem você marcar vê</span></h3>
+      <div class="para">${chipsPara(ui.susPara, "susPara")}</div>
+      <textarea id="susTxt" rows="3" maxlength="600" placeholder="Você ouve o seu nome vindo do fundo do poço…">${esc(ui.susTxt || "")}</textarea>
+      <div class="row wrap"><select id="susEstilo">${SUS_ESTILOS.map(([k, n]) => `<option value="${k}" ${k === (ui.susEstilo || "sussurro") ? "selected" : ""}>${n}</option>`).join("")}</select>
+        <select id="susSom">${SUS_SONS.map(([k, n]) => `<option value="${k}" ${k === (ui.susSom ?? "sussurros") ? "selected" : ""}>${n}</option>`).join("")}</select>
+        <label class="chk small"><input type="checkbox" id="susResp" ${ui.susResp ? "checked" : ""}> Pode responder</label></div>
+      <div class="row"><button class="primary" data-a="susEnviar">🗣 Sussurrar</button><button class="ghost" data-a="susPrevia" title="Ver como fica, só na sua tela">👁 Prévia</button><button class="ghost" data-a="susFav" title="Guardar esta frase para usar depois">★ Guardar</button></div>
+      ${mine.susFav.length ? `<div class="fav"><span class="muted small">Frases guardadas:</span>${mine.susFav.map((f, i) => `<span class="meu"><button class="chip" data-a="susUsar" data-i="${i}" title="${esc(f.txt)}">${esc(f.txt.length > 34 ? f.txt.slice(0, 33) + "…" : f.txt)}</button><button class="icon ghost" data-a="susFavDel" data-i="${i}" title="Apagar">✕</button></span>`).join("")}</div>` : ""}
+      ${hist.length ? `<details ${ui.susHist ? "open" : ""} data-keep="susHist"><summary class="small">Enviados (${(mine.sussurros || []).length})</summary>
+        <ol class="sushist">${hist.map((h) => { const resp = (recibos[h.id]?.resp || []); return `<li><small class="muted">${hora(h.at)} · ${status(h)}</small><div class="st-${esc(h.estilo)}">${esc(h.txt)}</div>
+          ${resp.map((r) => `<div class="resp">💬 <b>${esc(r.nome)}:</b> ${esc(r.txt)}</div>`).join("")}</li>`; }).join("")}</ol></details>` : ""}
+      <p class="muted small">Aparece no alto da tela da pessoa, some sozinho depois de alguns segundos e só ela vê. O som escolhido toca só para ela. A mensagem passa pelo navegador de todos na sala, então não é sigilo à prova de quem abrir as ferramentas do navegador.</p></section>`;
+}
+function enviarSussurro(previa) {
+  const txt = (ui.susTxt || "").trim(); if (!txt) return toast("Escreva o sussurro.");
+  if (!obrOk) return toast("Só funciona dentro do Owlbear.");
+  const estilo = ui.susEstilo || "sussurro"; const som = ui.susSom ?? "sussurros";
+  if (previa) {
+    OBR.broadcast.sendMessage(CH, { kind: "sussurro", sid: "previa", para: [me.id], txt, estilo, som, resp: !!ui.susResp }, { destination: "LOCAL" }).catch(() => {});
+    return;
+  }
+  const para = outros().filter((p) => ui.susPara.includes(p.id)).map((p) => ({ id: p.id, nome: p.name }));
+  if (!para.length) return toast("Escolha para quem é o sussurro.");
+  const sid = uid();
+  OBR.broadcast.sendMessage(CH, { kind: "sussurro", sid, para: para.map((p) => p.id), txt, estilo, som, resp: !!ui.susResp }, { destination: "REMOTE" })
+    .then(() => {
+      (mine.sussurros ||= []).unshift({ id: sid, at: Date.now(), para, txt, estilo }); mine.sussurros = mine.sussurros.slice(0, 40);
+      ui.susTxt = ""; ui.susHist = true; saveMine(); render(); toast(`Sussurro enviado para ${para.map((p) => p.nome).join(", ")}.`);
+    })
+    .catch(() => toast("Não deu para enviar (texto grande demais?)."));
+}
+
+/* ---------- Efeitos das fichas (na sala) ---------- */
+let fichaCfg = { ritual: true, crit: true };
+function viewEfeitosFicha() {
+  return `<section class="card"><h3>Efeitos das fichas na mesa</h3>
+      <label class="chk"><input type="checkbox" data-a="cfgRitual" ${fichaCfg.ritual !== false ? "checked" : ""}> Animação ao conjurar ritual (na ficha de quem conjura e o selo no token)</label>
+      <label class="chk"><input type="checkbox" data-a="cfgCrit" ${fichaCfg.crit !== false ? "checked" : ""}> Críticos e 1 natural aparecem na tela de todos</label>
+      <p class="muted small">Vale para a sala toda, na hora. Use para tirar as animações numa cena tensa ou se alguém achar demais. O mesmo controle está na aba Mesa da ficha (mestre).</p></section>`;
+}
+async function salvarFichaCfg(patch) {
+  fichaCfg = { ...fichaCfg, ...patch };
+  if (!obrOk) return;
+  try { await OBR.room.setMetadata({ [FICHA_CFG]: fichaCfg }); toast("Efeitos atualizados para a mesa."); }
+  catch { toast("Não deu para salvar na sala (sem espaço?)."); }
 }
 
 async function tokensOf(e) {
@@ -763,7 +858,7 @@ function viewFerramentas() {
       ${(h.mortes || []).length ? `<details><summary>Mortes (${h.mortes.length})</summary><ul class="small">${h.mortes.map((m) => `<li>Dia ${num(m.dia)}: ${esc(m.nome)} (${esc(m.equipe)})${m.algoz ? ` — por ${esc(m.algoz)}` : ""}${m.sac ? ` ✠ ${esc(m.sac)}` : ""}</li>`).join("")}</ul></details>` : ""}</section>`;
   }
   ui.grupo ||= {};
-  return `${estig}
+  return `${estig}${viewEfeitosFicha()}
     <section class="card"><h3>Ações em grupo</h3>
       <div class="pick">${sheets.map((s) => `<label class="chk"><input type="checkbox" data-grp="${s.id}" ${ui.grupo[s.id] ? "checked" : ""}> ${esc(nomeS(s))}</label>`).join("") || `<span class="muted">Sem fichas.</span>`}</div>
       <div class="row wrap"><input type="number" min="0" id="gVal" class="n4" placeholder="valor"><button class="danger" data-a="gDano">Dano</button><button data-a="gCura">Cura</button><button data-a="gPd" data-d="-1">PD/PE−</button><button data-a="gPd" data-d="1">PD/PE+</button></div>
@@ -783,7 +878,7 @@ function montarPub() {
   return {
     relogios: mine.relogios.filter((r) => r.pub).map(({ id, nome, seg, atual }) => ({ id, nome, seg, atual })),
     timer: mine.timer?.pub ? { nome: mine.timer.nome, fim: mine.timer.fim } : null,
-    amb: { loops: [...mine.amb.loops], url: mine.amb.url, urlVol: mine.amb.urlVol }, rev: Date.now(),
+    amb: { loops: [...mine.amb.loops], url: mine.amb.url, urlVol: mine.amb.urlVol, vols: Object.fromEntries(mine.amb.loops.map((k) => [k, volAmb(k)])) }, rev: Date.now(),
   };
 }
 let pubTimer;
@@ -818,7 +913,7 @@ function viewOuvintes() {
 }
 function som(k) {
   if (ui.previa || !obrOk) { tocarLocal(k); return; }
-  OBR.broadcast.sendMessage(CH, { kind: "som", k }, { destination: "ALL" }).catch(() => toast("Não deu para enviar o som."));
+  OBR.broadcast.sendMessage(CH, { kind: "som", k, para: ui.somPara?.length ? [...ui.somPara] : undefined }, { destination: "ALL" }).catch(() => toast("Não deu para enviar o som."));
 }
 function relAvisar(r) { if (r.pub) anunciar(`🕒 ${r.nome}: ${num(r.atual)}/${num(r.seg)}${num(r.atual) >= num(r.seg) ? " — completo!" : ""}`); }
 function findRel(id) { return mine.relogios.find((r) => r.id === id); }
@@ -855,12 +950,19 @@ $app.addEventListener("change", (ev) => {
   if (el.id === "genPapel") { mine.gen.papel = el.value; saveMine(); return; }
   if (el.id === "genTraco") { mine.gen.traco = el.value; saveMine(); return; }
   if (el.id === "somPrevia") { ui.previa = el.checked; return; }
+  if (el.id === "susEstilo") { ui.susEstilo = el.value; return; }
+  if (el.id === "susSom") { ui.susSom = el.value; return; }
+  if (el.id === "susResp") { ui.susResp = el.checked; return; }
+  if (d.a === "cfgRitual") { salvarFichaCfg({ ritual: el.checked }); return; }
+  if (d.a === "cfgCrit") { salvarFichaCfg({ crit: el.checked }); return; }
+  if (d.ambvol) { mine.amb.vols = { ...(mine.amb.vols || {}), [d.ambvol]: clamp(num(el.value) / 100, 0, 1) }; publicar(); return; }
   if (el.id === "ambVol") { mine.amb.urlVol = clamp(num(el.value) / 100, 0, 1); publicar(); return; }
 });
 let notasTimer;
 $app.addEventListener("input", (ev) => {
   const el = ev.target;
   if (el.id === "notas") { mine.notas = el.value; clearTimeout(notasTimer); notasTimer = setTimeout(saveMine, 400); }
+  if (el.id === "susTxt") ui.susTxt = el.value;
   if ((el.id === "cenaTxt" || el.id === "cenaNome") && cenaId) {
     const c = (mine.cenas[cenaId] ||= { nome: "", txt: "", at: 0 }); c[el.id === "cenaTxt" ? "txt" : "nome"] = el.value; c.at = Date.now();
     clearTimeout(notasTimer); notasTimer = setTimeout(saveMine, 400);
@@ -1108,6 +1210,45 @@ $app.addEventListener("click", async (ev) => {
 
     /* Cena: sons */
     case "som": return som(b.dataset.k);
+    case "somTodos": ui.somPara = []; return render();
+    case "somPara": { const p = b.dataset.pid; ui.somPara = ui.somPara.includes(p) ? ui.somPara.filter((x) => x !== p) : [...ui.somPara, p]; return render(); }
+    case "somLink": { const x = mine.sonsLink.find((y) => y.id === id); if (x) somLink(x); return; }
+    case "somLinkDel": mine.sonsLink = mine.sonsLink.filter((y) => y.id !== id); saveMine(); return render();
+    case "somLinkNovo": {
+      const nome = val("slNome").trim().slice(0, 30); const url = val("slUrl").trim();
+      if (!/^https:\/\/\S+$/i.test(url)) return toast("Cole um link https:// direto para um arquivo de áudio.");
+      mine.sonsLink.push({ id: uid(), nome: nome || "Meu som", url }); ui.slAberto = false; saveMine(); return render();
+    }
+    case "silencio":
+      mine.amb.loops = []; mine.amb.url = ""; publicar();
+      if (obrOk) OBR.broadcast.sendMessage(CH, { kind: "silencio" }, { destination: "ALL" }).catch(() => {});
+      return render();
+    case "cenaSomSalvar": {
+      const nome = val("csNome").trim().slice(0, 30); if (!nome) return toast("Dê um nome à cena sonora.");
+      if (!mine.amb.loops.length && !mine.amb.url) return toast("Ligue algum ambiente ou música antes de guardar.");
+      mine.cenasSom = mine.cenasSom.filter((c) => c.nome !== nome);
+      mine.cenasSom.push({ id: uid(), nome, loops: [...mine.amb.loops], vols: { ...(mine.amb.vols || {}) }, url: mine.amb.url, urlVol: mine.amb.urlVol });
+      saveMine(); toast(`Cena sonora “${nome}” guardada.`); return render();
+    }
+    case "cenaSomUsar": {
+      const c = mine.cenasSom.find((x) => x.id === id); if (!c) return;
+      mine.amb = { ...mine.amb, loops: [...c.loops], vols: { ...(c.vols || {}) }, url: c.url || "", urlVol: c.urlVol ?? mine.amb.urlVol };
+      publicar(); toast(`🎭 ${c.nome}`); return render();
+    }
+    case "cenaSomDel": mine.cenasSom = mine.cenasSom.filter((x) => x.id !== id); saveMine(); return render();
+
+    /* Secretas: sussurros */
+    case "susPara": { const p = b.dataset.pid; ui.susPara = ui.susPara.includes(p) ? ui.susPara.filter((x) => x !== p) : [...ui.susPara, p]; return render(); }
+    case "susDe": ui.susPara = [b.dataset.pid]; tab = "secretas"; lsSet(NS + ":tab", tab); render(); document.getElementById("susTxt")?.focus(); return;
+    case "susEnviar": return enviarSussurro(false);
+    case "susPrevia": return enviarSussurro(true);
+    case "susFav": {
+      const txt = (ui.susTxt || "").trim(); if (!txt) return toast("Escreva a frase primeiro.");
+      if (!mine.susFav.some((f) => f.txt === txt)) mine.susFav.push({ txt, estilo: ui.susEstilo || "sussurro" });
+      mine.susFav = mine.susFav.slice(-20); saveMine(); toast("Frase guardada."); return render();
+    }
+    case "susUsar": { const f = mine.susFav[num(b.dataset.i)]; if (!f) return; ui.susTxt = f.txt; ui.susEstilo = f.estilo || ui.susEstilo; render(); document.getElementById("susTxt")?.focus(); return; }
+    case "susFavDel": mine.susFav.splice(num(b.dataset.i), 1); saveMine(); return render();
     case "ouvVerificar": perguntarQuemOuve(); toast("Perguntando…"); setTimeout(() => softRender(), 1500); return;
     case "ouvTestar": som("sino"); return;
     case "ouvAvisar": {
@@ -1159,6 +1300,7 @@ window.addEventListener("storage", (e) => {
   if ([fichaKey(), hxKey(), logKey()].includes(e.key)) softRender();
   if (e.key === mineKey()) { loadMine(); softRender(); }
   if (e.key === FILA()) processarFila();
+  if (e.key === susKey() && tab === "secretas") softRender();
 });
 
 async function start() {
@@ -1171,9 +1313,12 @@ async function start() {
     obrOk = true; roomId = OBR.room.id;
     [role, me.id, me.name] = await Promise.all([OBR.player.getRole(), OBR.player.getId(), OBR.player.getName()]);
     loadMine(); setVolLocal(volJogador());
-    try { pub = (await OBR.room.getMetadata())[PUB_KEY] || null; } catch { pub = null; }
+    try { const md = await OBR.room.getMetadata(); pub = md[PUB_KEY] || null; fichaCfg = { ...fichaCfg, ...(md[FICHA_CFG] || {}) }; } catch { pub = null; }
     render();
-    OBR.room.onMetadataChange((md) => { const x = md[PUB_KEY]; if (!isGM() && x) { pub = x; softRender(); } });
+    OBR.room.onMetadataChange((md) => {
+      const x = md[PUB_KEY]; if (!isGM() && x) { pub = x; softRender(); }
+      if (md[FICHA_CFG]) { fichaCfg = { ...fichaCfg, ...md[FICHA_CFG] }; if (tab === "ferramentas") softRender(); }
+    });
     OBR.player.onChange((p) => { if (p.role !== role) { role = p.role; render(); } });
     try { party = await OBR.party.getPlayers(); } catch { party = []; }
     OBR.party.onChange((ps) => { party = ps; softRender(); });

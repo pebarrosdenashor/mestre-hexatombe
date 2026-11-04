@@ -1,6 +1,6 @@
 import OBR from "https://cdn.jsdelivr.net/npm/@owlbear-rodeo/sdk@3.1.0/+esm";
-import { tocar, laco, lacosAtivos, musica, setVolume, estado, aoMudarEstado, destravar, AMBIENTES } from "./sons.js?v=1.4.0";
-const VERSAO = "1.3";
+import { tocar, tocarUrl, pararAvulsos, laco, lacosAtivos, musica, setVolume, estado, aoMudarEstado, destravar, AMBIENTES } from "./sons.js?v=1.5.0";
+const VERSAO = "1.5";
 
 /* Caixa de som: um botãozinho no canto da tela de cada pessoa da sala.
    Os navegadores só deixam tocar som numa janela em que a pessoa clicou,
@@ -55,7 +55,7 @@ document.addEventListener("pointerdown", () => { if (estado() !== "running") des
 aoMudarEstado(() => { aplicarAmbiente(ultimoPub, true); desenhar(); relatar(); });
 
 /* ---------- Avisa o mestre se esta pessoa está ouvindo ---------- */
-let meId = "", meNome = "", relTimer = null;
+let meId = "", meNome = "", relTimer = null, souMestre = false;
 function relatar() {
   if (!meId) return;
   OBR.broadcast.sendMessage(CH, { kind: "ouvinte", id: meId, nome: meNome, estado: estado(), vol: lerVol(), v: VERSAO }, { destination: "ALL" }).catch(() => {});
@@ -67,9 +67,9 @@ function aplicarAmbiente(p, forcar = false) {
   if (!p) return;
   if (!forcar && ultimoPub && Number(p.rev || 0) < Number(ultimoPub.rev || 0)) return; // versão velha
   ultimoPub = p;
-  const loops = p.amb?.loops || [];
+  const loops = p.amb?.loops || []; const vols = p.amb?.vols || {};
   for (const k of lacosAtivos()) if (!loops.includes(k)) laco(k, false);
-  for (const k of loops) laco(k, true);
+  for (const k of loops) laco(k, true, vols[k] ?? 1);
   musica(p.amb?.url || "", Number(p.amb?.urlVol ?? 0.6));
   desenhar();
 }
@@ -78,12 +78,16 @@ OBR.onReady(async () => {
   aplicarVol();
   OBR.broadcast.onMessage(CH, (ev) => {
     const d = ev.data || {};
-    if (d.kind === "som" && d.k) tocar(String(d.k));
+    // som só para algumas pessoas: d.para traz os ids (o mestre sempre ouve, para acompanhar)
+    const praMim = !Array.isArray(d.para) || !d.para.length || d.para.includes(meId) || souMestre;
+    if (d.kind === "som" && d.k && praMim) tocar(String(d.k));
+    if (d.kind === "somUrl" && d.url && praMim) tocarUrl(String(d.url), Number(d.vol ?? 1));
+    if (d.kind === "silencio") pararAvulsos();
     if (d.kind === "pub" && d.pub) aplicarAmbiente(d.pub);
     if (d.kind === "quemOuve") relatarLogo();
   });
-  try { [meId, meNome] = await Promise.all([OBR.player.getId(), OBR.player.getName()]); } catch { /* */ }
-  OBR.player.onChange((p) => { if (p.name && p.name !== meNome) { meNome = p.name; relatarLogo(); } });
+  try { let r; [meId, meNome, r] = await Promise.all([OBR.player.getId(), OBR.player.getName(), OBR.player.getRole()]); souMestre = r === "GM"; } catch { /* */ }
+  OBR.player.onChange((p) => { souMestre = p.role === "GM"; if (p.name && p.name !== meNome) { meNome = p.name; relatarLogo(); } });
   relatar(); setInterval(relatar, 20000);
   try { aplicarAmbiente((await OBR.room.getMetadata())[PUB_KEY] || null); } catch { /* */ }
   OBR.room.onMetadataChange((md) => { if (md[PUB_KEY]) aplicarAmbiente(md[PUB_KEY]); });

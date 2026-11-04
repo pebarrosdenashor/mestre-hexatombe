@@ -80,3 +80,24 @@ O gerador (no fim da aba ⚔ Combate) agora tem três modos: 👤 NPC, 🎭 Enco
   - Função nova: intendente (cuida da comida).
   - Cada integrante tem aparência, o que carrega, uma fala e, às vezes, um segredo. Mais tensões em equipes grandes.
   - Tudo isso vai junto para o “Plano secreto do mestre” e o “Perfil da equipe” no Hexatombe.
+
+## Novidades da versão 1.5
+Arquivos novos: `sussurro.html` e `sussurro.js`. Suba os dois junto com os outros (todos os arquivos mudaram de versão).
+
+**🎭 Cena — mesa de som**
+- **Para quem:** escolha “Todos” ou marque jogadores; o efeito toca só para eles (você sempre ouve, para acompanhar).
+- **Sons novos:** caixinha de música desafinada e respiração na nuca (efeitos); realejo do circo e goteira (ambientação).
+- **Seu próprio som:** guarde efeitos por link direto (.mp3/.ogg) e toque com um clique.
+- **Volume de cada ambiente:** cada laço ligado ganha o seu controle de volume (ex.: realejo baixinho por baixo do vento).
+- **Cenas sonoras:** guarde o que está tocando com um nome (“Picadeiro à noite”) e troque o clima inteiro com um clique.
+- **🔇 Silêncio:** para ambientes, música e sons por link, devagar.
+- A caixa de som também toca os sons pedidos pelas outras extensões: crítico, 1 natural e ritual de cada elemento (ficha) e a revelação do bestiário (Hexatombe).
+
+**🙈 Secretas — sussurros**
+- Escreva, marque para quem vai e escolha o estilo: 🌫 sussurro (letra por letra, tremendo), 🩸 voz do Outro Lado (vermelho, embaralhado), ❄ pensamento intrusivo (azul) ou 📜 bilhete.
+- Escolha o som que toca junto, só para essa pessoa. Aparece no alto da tela dela e some sozinho.
+- **Pode responder:** a pessoa escreve de volta e só você recebe (aviso na tela, mesmo com o Escudo fechado).
+- Na lista de enviados: ✓ quem já leu e as respostas. ★ guarda frases para usar depois. 👁 Prévia mostra só na sua tela.
+- Atalho: na aba Mesa, abra um agente e clique em **🗣 Sussurrar**.
+
+**🧰 Ferramentas — efeitos das fichas na mesa:** liga/desliga a animação de ritual e os críticos na tela de todos (o mesmo controle está na aba Mesa da ficha).

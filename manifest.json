@@ -1,6 +1,6 @@
 {
   "name": "Escudo do Mestre — Hexatombe",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "manifest_version": 1,
   "action": {
     "title": "Escudo do Mestre (só o mestre)",
@@ -11,7 +11,7 @@
   },
   "background_url": "https://pebarrosdenashor.github.io/mestre-hexatombe/background.html",
   "author": "pebarrosdenashor",
-  "description": "Escudo do mestre do Hexatombe: painel, rolagens secretas, combate, sons e relógios.",
+  "description": "Escudo do mestre do Hexatombe: painel, rolagens secretas, sussurros, combate, mesa de som e relógios.",
   "permissions": [
     {
       "name": "autoplay",

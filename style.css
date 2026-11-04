@@ -205,3 +205,29 @@ input[type=range] { flex: 1; accent-color: var(--accent); padding: 0; background
 button.linkish { background: none; border: none; padding: 0; color: inherit; font-weight: 600; text-decoration: underline dotted; cursor: pointer; }
 .gerado .lore b.small { display: block; margin-top: 6px; }
 .gmodo button { white-space: nowrap; padding-left: 4px; padding-right: 4px; }
+
+/* ---------- v1.5: mesa de som e sussurros ---------- */
+.para { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 8px; }
+.para .chip, .fav .chip { cursor: pointer; }
+.meu { display: inline-flex; align-items: stretch; gap: 2px; }
+.meu > button:first-child { flex: 1; }
+.sons.meus { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.sons.meus .meu > button:first-child { text-align: left; overflow: hidden; text-overflow: ellipsis; }
+.ambvols { display: grid; gap: 4px; margin: 2px 0 8px; padding: 6px 8px; background: var(--panel2); border-radius: 8px; }
+.ambvols .row { margin: 0; }
+.ambvols span { flex: 0 0 132px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cenassom { margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 8px; }
+.cenassom .row.wrap { gap: 6px; }
+details > summary { cursor: pointer; margin: 4px 0; }
+.sus textarea { margin: 2px 0 4px; font-family: "Crimson Pro", Georgia, serif; font-size: 15px; }
+.sus select { flex: 1; min-width: 140px; }
+.fav { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 8px; }
+.sushist { list-style: none; padding: 0; margin: 4px 0 0; display: grid; gap: 6px; }
+.sushist li { background: var(--panel2); border-radius: 8px; padding: 6px 8px; border-left: 3px solid var(--line); }
+.sushist .lido { color: var(--ok); }
+.sushist .pend { color: var(--muted); }
+.sushist .resp { margin-top: 4px; padding: 4px 6px; background: #0e2a1c; border-radius: 6px; font-size: 13px; }
+.sushist .st-outro { color: #ff9aa8; }
+.sushist .st-pensamento { color: #9fd3ef; font-style: italic; }
+.sushist .st-sussurro { font-style: italic; }
+.sushist .st-bilhete { font-family: "Courier New", monospace; }
