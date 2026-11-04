@@ -7,7 +7,7 @@ Só o mestre usa: se um jogador abrir, aparece "Privado para o mestre".
 
 1. No GitHub, crie um repositório **público** chamado `mestre-hexatombe` na conta `pebarrosdenashor`.
 2. Envie os 9 arquivos **soltos, na raiz** (fora de qualquer pasta):
-   `manifest.json`, `index.html`, `app.js`, `dados.js`, `style.css`, `background.html`, `background.js`, `icon.svg`, `LEIA-ME.md`.
+   `manifest.json`, `index.html`, `app.js`, `dados.js`, `sons.js`, `gerador.js`, `style.css`, `background.html`, `background.js`, `icon.svg`, `LEIA-ME.md`.
 3. Em **Settings → Pages**: *Deploy from a branch* → `main` → `/ (root)` → Save.
 4. Depois de 1–2 minutos, abra `https://pebarrosdenashor.github.io/mestre-hexatombe/manifest.json` e confira se aparece `"name": "Escudo do Mestre — Hexatombe"`.
 5. No Owlbear: **Extensions → Add Extension**, cole esse link e ative na sala (junto com a Ficha e o Hexatombe).
@@ -22,7 +22,7 @@ Só o mestre usa: se um jogador abrir, aparece "Privado para o mestre".
 
 **⚔ Combate** — iniciativa (agentes pela ficha, criaturas pelo bestiário do livro ou do Hexatombe, NPCs rápidos), rodadas, condições que acabam sozinhas depois de X rodadas, ataques das criaturas contra a Defesa do alvo com botão para aplicar o dano, anel vermelho no token da vez e aviso "vez de…" para a mesa. Criaturas entram com o nome oculto nos avisos.
 
-**🧰 Ferramentas** — quem carrega cada estigma (segredo do mestre), desertores e mortes, dano/cura/condição em grupo, anúncio para a mesa, gerador de nomes, notas do mestre e a lista de condições.
+**🧰 Ferramentas** — quem carrega cada estigma (segredo do mestre), desertores e mortes, dano/cura/condição em grupo, anúncio para a mesa, gerador de nomes e a lista de condições.
 
 O botão ⤢ abre o escudo em tela grande, com os agentes em duas colunas.
 
@@ -32,3 +32,22 @@ O botão ⤢ abre o escudo em tela grande, com os agentes em duas colunas.
 - O Hexatombe precisa ter sido aberto pelo mestre pelo menos uma vez nesta sala.
 - O teste secreto usa atributo, treino, condições, desertor e sinos. Não conta a penalidade de carga.
 - Em ataque de criatura com 20 natural, os dados de dano são dobrados; confira a margem de crítico no livro.
+
+
+## Novidades da versão 1.1
+
+**⚔ Combate**
+- **＋ Tokens selecionados:** selecione tokens no mapa e clique. Token ligado a uma ficha entra como o agente; token com o nome de uma criatura do bestiário (ex.: "Jaguatirica", "Jaguatirica 2") entra com a ficha dela; qualquer outro entra como NPC simples, ligado ao token.
+- **Menu do token:** botão direito num token → "Adicionar ao combate" (só o mestre vê). Com o Escudo fechado, os tokens esperam numa fila e entram quando você abrir.
+- **Câmera vai até o token da vez:** a sua tela centraliza no token de quem age a cada turno.
+- **Gerador de NPC:** escolha o tipo (pessoa armada, cultista, animal ou criatura de um elemento), o VD e o papel (lacaio, comum, chefe). Sai uma ameaça com Defesa, PV, testes, ataques, resistências, presença perturbadora e uma habilidade. Dá para pôr no combate (até 20 de uma vez), guardar para usar depois ou copiar o texto. **Os números são aproximados**, na escala das ameaças do livro, para improvisar.
+
+**🎭 Cena** (aba nova)
+- **Efeitos sonoros** para todos: porta rangendo, batidas, passos, sussurros, coração, trovão, estática, sino, grito distante, vidro, correntes e risada do circo. "Só ouvir aqui" toca só para você, para testar.
+- **Ambientação em laço** para todos: vento, chuva, floresta à noite, tensão, batimento e rádio chiando, que podem tocar juntos. Também aceita uma música por link (mp3/ogg). Quem entra na sala depois já ouve o que está tocando.
+- Os sons são gerados pelo navegador, sem arquivos. Cada jogador ajusta o próprio volume clicando no Escudo (na tela de "privado").
+- **Relógios de ameaça** (4 a 12 fatias): clique numa fatia ou use −/＋. Os marcados como visíveis aparecem para os jogadores na tela de "privado" e avisam a mesa quando mudam.
+- **Cronômetro:** visível para todos ou só para você. Quando acaba, todos recebem um aviso com o sino.
+- **Notas desta cena:** cada cena do Owlbear tem as suas notas, guardadas no seu navegador. As de outras cenas ficam listadas embaixo. As notas gerais (de antes) também estão aqui.
+
+**Permissão nova:** o manifesto pede a permissão de tocar som automaticamente. Ao atualizar, remova e adicione a extensão de novo se o Owlbear não tocar nada.

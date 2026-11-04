@@ -1,5 +1,7 @@
 import OBR, { buildShape } from "https://cdn.jsdelivr.net/npm/@owlbear-rodeo/sdk@3.1.0/+esm";
 import { CONDICOES, ESTIGMAS, BESTIARIO } from "./dados.js";
+import { EFEITOS, AMBIENTES, tocar as tocarLocal, setVolume as setVolLocal } from "./sons.js";
+import { gerarNpc, VDS, TIPOS, PAPEIS } from "./gerador.js";
 
 /* =========================================================
    Escudo do Mestre — Hexatombe (Owlbear Rodeo)
@@ -20,6 +22,9 @@ const LINK_KEY = FICHA_NS + "/link";
 const OPEN_KEY = FICHA_NS + ":open";
 const FICHA_URL = "https://pebarrosdenashor.github.io/fichas-ordem-paranormal/index.html";
 const HX_NS = "io.github.pebarrosdenashor.hexatombe";
+const PUB_KEY = NS + "/publico";   // na sala: relógios, cronômetro e ambiente que todos veem/ouvem
+const CENA_KEY = NS + "/cena";     // na cena: só um identificador, para as notas por cena
+const FILA = () => `${NS}:fila:${roomId}`; // tokens mandados ao combate pelo menu do token
 
 /* ---------- Regras (iguais às da ficha) ---------- */
 const ATTRS = [["FOR", "Força"], ["AGI", "Agilidade"], ["INT", "Intelecto"], ["VIG", "Vigor"], ["PRE", "Presença"]];
@@ -80,6 +85,8 @@ function rollMonster(expr, extra = 0) {
 let obrOk = false, sceneOk = false, role = "PLAYER", roomId = "local";
 let me = { id: "local", name: "Mestre" };
 let party = [];
+let pub = null;      // parte pública (relógios, cronômetro, ambiente), guardada na sala
+let cenaId = null;   // identificador da cena aberta, para as notas
 let tab = lsGet(NS + ":tab") || "mesa";
 const ui = { open: {}, cOpen: {}, logFiltro: "todas", secRes: null, grupo: {}, secSel: null, nome: "", alvo: {} };
 const isGM = () => role === "GM";
@@ -89,12 +96,13 @@ const mineKey = () => `${NS}:${roomId}`;
 const logKey = () => `${NS}:log:${roomId}`;
 
 function defMine() {
-  return { combate: { lista: [], vez: 0, rodada: 1, ativo: false, anel: true, anunciar: true }, ocultas: [], notas: "", soOnline: false, undo: [] };
+  return { combate: { lista: [], vez: 0, rodada: 1, ativo: false, anel: true, anunciar: true, seguir: false }, ocultas: [], notas: "", soOnline: false, undo: [],
+    npcs: [], cenas: {}, relogios: [], timer: null, amb: { loops: [], url: "", urlVol: 0.6 }, gen: { tipo: "Sangue", vd: 40, papel: "comum" } };
 }
 let mine = defMine();
 function loadMine() {
   const m = readJSON(mineKey(), null); const d = defMine();
-  mine = { ...d, ...(m || {}), combate: { ...d.combate, ...(m?.combate || {}) } };
+  mine = { ...d, ...(m || {}), combate: { ...d.combate, ...(m?.combate || {}) }, amb: { ...d.amb, ...(m?.amb || {}) }, gen: { ...d.gen, ...(m?.gen || {}) } };
 }
 function saveMine() { lsSet(mineKey(), JSON.stringify(mine)); }
 
@@ -225,7 +233,7 @@ function hxMemberName(m, h) {
   if (m.npcId) { const n = (h.bestiario || []).find((c) => c.id === m.npcId); if (n) return n.nome; }
   const s = m.sheetId && getSheet(m.sheetId); return s ? nomeS(s) : m.nome || "?";
 }
-function bestiarioTodo() { const h = hx(); return [...BESTIARIO.map((c) => ({ ...c, _src: "livro" })), ...((h?.bestiario) || []).map((c) => ({ ...c, _src: "hexa" }))]; }
+function bestiarioTodo() { const h = hx(); return [...BESTIARIO.map((c) => ({ ...c, _src: "livro" })), ...((h?.bestiario) || []).map((c) => ({ ...c, _src: "hexa" })), ...(mine.npcs || []).map((c) => ({ ...c, _src: "meus" }))]; }
 
 /* ---------- Registro de rolagens do mestre ---------- */
 function readLog() { return readJSON(logKey(), []); }
@@ -263,15 +271,23 @@ function testeOptions(sel) {
 const testeNome = (k) => (ATTR_KEYS.includes(k) ? Object.fromEntries(ATTRS)[k] : k);
 
 function viewLocked() {
+  const p = pub || {}; const rel = p.relogios || [];
   return `<div class="locked"><div class="lockicon">🔒</div><h2>Privado para o mestre</h2>
     <p>Esta extensão é o escudo do mestre: só quem está como mestre na sala pode abri-la.</p>
-    <p class="muted">Suas fichas e as regras do Hexatombe ficam nas outras extensões.</p></div>`;
+    <p class="muted">Suas fichas e as regras do Hexatombe ficam nas outras extensões.</p></div>
+    ${p.timer || rel.length ? `<section class="card mesa-pub"><h3>Na mesa agora</h3>
+      ${p.timer ? `<div class="timer"><span>⏳ ${esc(p.timer.nome || "Cronômetro")}</span><b class="countdown" data-fim="${num(p.timer.fim)}">${restante(p.timer.fim)}</b></div>` : ""}
+      <div class="clocks">${rel.map((r) => relogioSVG(r)).join("")}</div></section>` : ""}
+    <section class="card"><h3>Sons do mestre</h3>
+      <div class="row"><span>🔈</span><input type="range" min="0" max="100" step="5" id="volJog" value="${Math.round(volJogador() * 100)}"><span class="small muted" id="volTxt">${Math.round(volJogador() * 100)}%</span></div>
+      <p class="muted small">Volume dos efeitos e da ambientação que o mestre tocar.</p></section>`;
 }
+function volJogador() { const v = lsGet(`${NS}:vol`); return v === null ? 0.8 : clamp(Number(v) || 0, 0, 1); }
 
 function render() {
   if (!isGM()) { $app.innerHTML = viewLocked(); return; }
-  const tabs = [["mesa", "👥 Mesa"], ["secretas", "🙈 Secretas"], ["combate", "⚔ Combate"], ["ferramentas", "🧰 Ferramentas"]];
-  const body = { mesa: viewMesa, secretas: viewSecretas, combate: viewCombate, ferramentas: viewFerramentas }[tab] || viewMesa;
+  const tabs = [["mesa", "👥 Mesa"], ["secretas", "🙈 Secretas"], ["combate", "⚔ Combate"], ["cena", "🎭 Cena"], ["ferramentas", "🧰 Ferramentas"]];
+  const body = { mesa: viewMesa, secretas: viewSecretas, combate: viewCombate, cena: viewCena, ferramentas: viewFerramentas }[tab] || viewMesa;
   $app.innerHTML = `<header class="top"><h2>Escudo do Mestre</h2><span class="row">
       ${mine.undo.length ? `<button class="icon" data-a="undo" title="Desfazer: ${esc(mine.undo[0].desc)}">↶</button>` : ""}
       <button class="icon" data-a="pedir" title="Pedir as fichas atualizadas aos jogadores">⟳</button>
@@ -428,18 +444,139 @@ function viewCombate() {
       <span class="row">${c.ativo ? `<button data-a="cPrev" title="Turno anterior">◂</button><button class="primary" data-a="cNext">Próximo ▸</button><button class="ghost" data-a="cFim">Encerrar</button>` : `<button class="primary" data-a="cIniciar" ${c.lista.length ? "" : "disabled"}>⚔ Iniciar combate</button>`}</span></div>
       <div class="row wrap small"><label class="chk"><input type="checkbox" data-a="cAnel" ${c.anel ? "checked" : ""}> Anel no token da vez</label>
         <label class="chk"><input type="checkbox" data-a="cAnunciar" ${c.anunciar ? "checked" : ""}> Avisar a mesa de quem é a vez</label>
+        <label class="chk"><input type="checkbox" data-a="cSeguir" ${c.seguir ? "checked" : ""}> Câmera vai até o token da vez</label>
         <button class="ghost" data-a="cReroll" ${c.lista.length ? "" : "disabled"}>🎲 Rolar iniciativa de novo</button>
         <button class="ghost danger" data-a="cLimpar" ${c.lista.length ? "" : "disabled"}>Limpar</button></div></section>
     <ol class="combat">${rows || `<li class="muted vazio">Ninguém no combate. Adicione abaixo.</li>`}</ol>
     <section class="card"><h3>Adicionar</h3>
       <div class="row wrap"><button data-a="cAddPCs" ${sheets.length ? "" : "disabled"}>＋ Todos os agentes (${sheets.length})</button>
         <select id="cAddPC"><option value="">ou um agente…</option>${sheets.map((s) => `<option value="${s.id}">${esc(nomeS(s))}</option>`).join("")}</select><button data-a="cAddPC">＋</button></div>
-      <div class="row wrap"><select id="cBest"><option value="">Criatura do bestiário…</option>${best.map((b, i) => `<option value="${i}">${esc(b.nome)}${b._src === "hexa" ? " (Hexatombe)" : ""}${b.vd ? ` · VD ${esc(b.vd)}` : ""}</option>`).join("")}</select>
+      <div class="row wrap"><select id="cBest"><option value="">Criatura do bestiário…</option>${best.map((b, i) => `<option value="${i}">${esc(b.nome)}${b._src === "hexa" ? " (Hexatombe)" : b._src === "meus" ? " (gerado)" : ""}${b.vd ? ` · VD ${esc(b.vd)}` : ""}</option>`).join("")}</select>
         <input type="number" min="1" max="20" id="cQtd" class="n3" value="1" title="Quantidade"><button data-a="cAddBest">＋</button></div>
+      <div class="row wrap"><button data-a="cAddSel" title="Selecione tokens no mapa e clique">🎯 ＋ Tokens selecionados</button><span class="muted small">ou clique com o botão direito num token → “Adicionar ao combate”</span></div>
       <div class="row wrap"><input id="cNome" placeholder="Nome (NPC rápido)"><input type="number" id="cIni" class="n3" placeholder="Ini"><input type="number" id="cPv" class="n3" placeholder="PV"><input type="number" id="cDef" class="n3" placeholder="Def"><button data-a="cAddNpc">＋</button></div>
       <p class="muted small">Agentes usam a Iniciativa e os PV da ficha; o dano aplicado aqui vai direto para a ficha do jogador. Criaturas rolam a Iniciativa do bestiário.</p>
-    </section>`;
+    </section>
+    ${viewGerador()}`;
 }
+/* ---------- Gerador de NPC ---------- */
+function geradoHTML(g) {
+  const c = g.cri;
+  return `<div class="gerado"><div class="row between"><b class="gen">${esc(g.nome)}</b><button class="icon ghost" data-a="genNome" title="Outro nome">🎲</button></div>
+    <div class="muted small">${esc(c.tipo)} · VD ${esc(c.vd)} · ${esc(c.desl)}</div>
+    <div class="gstats"><span>Def <b>${g.def}</b></span><span>PV <b>${g.pv}</b></span><span>Ini <b>${esc(c.ini)}</b></span><span>Perc. <b>${esc(c.per)}</b></span></div>
+    <div class="small">Fort ${esc(c.res.Fortitude)} · Ref ${esc(c.res.Reflexos)} · Von ${esc(c.res.Vontade)}</div>
+    ${c.rd ? `<div class="small">RD: ${esc(c.rd)}${c.vuln ? ` · vulnerável a ${esc(c.vuln)}` : ""}</div>` : ""}
+    ${c.pp ? `<div class="small">Presença perturbadora: ${esc(c.pp)}</div>` : ""}
+    <ul class="small gl">${c.atq.map((a) => `<li><b>${esc(a[0])}</b> ${esc(a[1])} · ${esc(a[2])} ${esc(a[3])}</li>`).join("")}${(c.extra || []).map((a) => `<li><b>${esc(a[0])}</b></li>`).join("")}</ul>
+    <ul class="small gl">${c.hab.map((h) => `<li>${esc(h)}</li>`).join("")}</ul>
+    <div class="row wrap"><input type="number" min="1" max="20" id="genQtd" class="n3" value="1" title="Quantidade"><button class="primary" data-a="genCombate">＋ Combate</button>
+      <button data-a="genSalvar" title="Guarda na lista de criaturas do combate">💾 Guardar</button><button class="ghost" data-a="genCopiar">📋 Copiar</button></div></div>`;
+}
+function viewGerador() {
+  const g = mine.gen;
+  const salvos = mine.npcs || [];
+  return `<section class="card"><h3>Gerador de NPC</h3>
+    <div class="row wrap"><select id="genTipo">${TIPOS.map(([k, n]) => `<option value="${k}" ${g.tipo === k ? "selected" : ""}>${n}</option>`).join("")}</select>
+      <select id="genVd" title="Nível da ameaça (VD)">${VDS.map((v) => `<option value="${v}" ${num(g.vd) === v ? "selected" : ""}>VD ${v}</option>`).join("")}</select>
+      <select id="genPapel">${PAPEIS.map(([k, n]) => `<option value="${k}" ${g.papel === k ? "selected" : ""}>${n}</option>`).join("")}</select>
+      <button class="primary" data-a="gerar">🎲 Gerar</button></div>
+    ${ui.gerado ? geradoHTML(ui.gerado) : `<p class="muted small">Cria uma ameaça com Defesa, PV, testes, ataques e uma habilidade, na escala do VD escolhido. Os números são aproximados, para improvisar.</p>`}
+    ${salvos.length ? `<details><summary class="small">Guardados (${salvos.length})</summary><ul class="small gl">${salvos.map((n) => `<li>${esc(n.nome)} <span class="muted">VD ${esc(n.vd)}</span> <button class="icon ghost danger" data-a="genApagar" data-id="${esc(n.id)}" title="Apagar">✕</button></li>`).join("")}</ul></details>` : ""}
+  </section>`;
+}
+function geradoParaBestiario(g) {
+  return { id: uid(), nome: g.nome, tipo: g.cri.tipo, vd: g.cri.vd, def: g.def, pv: g.pv, ini: g.cri.ini, per: g.cri.per, res: g.cri.res, atq: g.cri.atq, extra: g.cri.extra, hab: g.cri.hab, pp: g.cri.pp, rd: g.cri.rd, vuln: g.cri.vuln, desl: g.cri.desl };
+}
+
+/* ---------- Combate: tokens do mapa ---------- */
+function nomeDoToken(it) { return (it.text?.plainText || it.name || "Token").trim().slice(0, 40) || "Token"; }
+function addDoToken(it) {
+  const link = it.metadata?.[LINK_KEY];
+  const c = C();
+  if (link?.sheetId && getSheet(link.sheetId)) {
+    if (c.lista.some((e) => e.sheetId === link.sheetId)) return null;
+    return addCombatente({ sheetId: link.sheetId, nome: nomeS(getSheet(link.sheetId)) });
+  }
+  if (c.lista.some((e) => e.tokenId === it.id)) return null;
+  const nome = nomeDoToken(it);
+  const cri = bestiarioTodo().find((b) => b.nome.toLowerCase() === nome.toLowerCase().replace(/\s+\d+$/, ""));
+  if (cri) {
+    return addCombatente({ nome, tokenId: it.id, cri: { nome: cri.nome, tipo: cri.tipo, vd: cri.vd, ini: cri.ini, per: cri.per, res: cri.res, atq: cri.atq, extra: cri.extra, hab: cri.hab, pp: cri.pp, rd: cri.rd, vuln: cri.vuln, desl: cri.desl }, pv: num(cri.pv), pvMax: num(cri.pv), def: num(cri.def), oculto: true });
+  }
+  return addCombatente({ nome, tokenId: it.id, ini: die(20), pv: 0, pvMax: 0, def: "", oculto: true });
+}
+async function addSelecionados() {
+  if (!sceneOk) return toast("Abra uma cena primeiro.");
+  const sel = await OBR.player.getSelection();
+  if (!sel?.length) return toast("Selecione um ou mais tokens no mapa e clique de novo.");
+  const its = await OBR.scene.items.getItems(sel); let n = 0;
+  for (const it of its) if (["CHARACTER", "MOUNT", "PROP"].includes(it.layer) && addDoToken(it)) n++;
+  saveMine(); render(); updateRing();
+  toast(n ? `${n} adicionado(s) ao combate.` : "Nada novo: esses tokens já estão no combate.");
+}
+// Pedidos do menu do token (feitos pelo fundo, com a janela fechada ou aberta)
+async function processarFila() {
+  if (!isGM() || !sceneOk) return;
+  const fila = readJSON(FILA(), []); if (!fila.length) return;
+  lsSet(FILA(), "[]");
+  let its = []; try { its = await OBR.scene.items.getItems(fila); } catch { /* */ }
+  let n = 0; for (const it of its) if (addDoToken(it)) n++;
+  if (n) { saveMine(); softRender(); updateRing(); toast(`${n} token(s) entraram no combate.`); }
+}
+async function seguirVez() {
+  const c = C(); const e = c.lista[c.vez]; if (!c.seguir || !e || !sceneOk) return;
+  try { const ids = await tokensOf(e); if (!ids.length) return; const b = await OBR.scene.items.getItemBounds(ids); await OBR.viewport.animateToBounds({ ...b, min: { x: b.min.x - b.width * 2, y: b.min.y - b.height * 2 }, max: { x: b.max.x + b.width * 2, y: b.max.y + b.height * 2 }, width: b.width * 5, height: b.height * 5 }); } catch { /* */ }
+}
+
+/* ---------- Aba: Cena ---------- */
+function restante(fim) {
+  const ms = Math.max(0, num(fim) - Date.now()); const s = Math.ceil(ms / 1000);
+  return ms <= 0 ? "acabou" : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+function relogioSVG(r, editavel = false) {
+  const seg = clamp(num(r.seg), 2, 12); const at = clamp(num(r.atual), 0, seg); const R = 30, cx = 36, cy = 36;
+  const fatias = Array.from({ length: seg }, (_, i) => {
+    const a0 = (i / seg) * 2 * Math.PI - Math.PI / 2, a1 = ((i + 1) / seg) * 2 * Math.PI - Math.PI / 2;
+    const x0 = cx + R * Math.cos(a0), y0 = cy + R * Math.sin(a0), x1 = cx + R * Math.cos(a1), y1 = cy + R * Math.sin(a1);
+    return `<path d="M${cx},${cy} L${x0.toFixed(2)},${y0.toFixed(2)} A${R},${R} 0 0 1 ${x1.toFixed(2)},${y1.toFixed(2)} Z" class="${i < at ? "on" : ""}"${editavel ? ` data-a="relFatia" data-id="${esc(r.id)}" data-i="${i}"` : ""}/>`;
+  }).join("");
+  return `<figure class="clock ${at >= seg ? "cheio" : ""}"><svg viewBox="0 0 72 72" width="72" height="72" role="img" aria-label="${esc(r.nome)}: ${at} de ${seg}">${fatias}<circle cx="${cx}" cy="${cy}" r="${R}" class="aro"/></svg><figcaption>${esc(r.nome)}<small>${at}/${seg}</small></figcaption></figure>`;
+}
+function viewCena() {
+  const a = mine.amb; const t = mine.timer;
+  const cena = cenaId ? (mine.cenas[cenaId] ||= { nome: "", txt: "", at: 0 }) : null;
+  const outras = Object.entries(mine.cenas).filter(([k, v]) => k !== cenaId && (v.txt || v.nome)).sort((x, y) => num(y[1].at) - num(x[1].at));
+  return `<section class="card"><h3>Efeitos sonoros <span class="muted small">todos ouvem</span></h3>
+      <div class="sons">${EFEITOS.map(([k, n]) => `<button data-a="som" data-k="${k}">${n}</button>`).join("")}</div>
+      <div class="row wrap small"><label class="chk"><input type="checkbox" id="somPrevia" ${ui.previa ? "checked" : ""}> Só ouvir aqui (prévia)</label></div></section>
+    <section class="card"><h3>Ambientação <span class="muted small">em laço, para todos</span></h3>
+      <div class="sons">${AMBIENTES.map(([k, n]) => `<button class="${a.loops.includes(k) ? "on" : ""}" data-a="amb" data-k="${k}">${n}</button>`).join("")}</div>
+      <div class="row"><input id="ambUrl" placeholder="Música por link (mp3/ogg)…" value="${esc(a.url)}"><button data-a="ambUrl">${a.url ? "Trocar" : "▶"}</button>${a.url ? `<button class="danger" data-a="ambUrlStop" title="Parar a música">■</button>` : ""}</div>
+      <div class="row"><span class="small muted">Volume da música</span><input type="range" min="0" max="100" step="5" id="ambVol" value="${Math.round(num(a.urlVol) * 100)}"></div>
+      ${a.loops.length || a.url ? `<div class="row"><button class="ghost danger" data-a="ambParar">■ Parar toda a ambientação</button></div>` : ""}
+      <p class="muted small">Quem entrar na sala depois também ouve. Cada jogador ajusta o próprio volume clicando no Escudo (a tela de “privado”).</p></section>
+    <section class="card"><h3>Relógios de ameaça</h3>
+      <div class="clocks">${mine.relogios.map((r) => `<div class="clockbox">${relogioSVG(r, true)}
+        <div class="row"><button class="icon" data-a="relMenos" data-id="${esc(r.id)}">−</button><button class="icon" data-a="relMais" data-id="${esc(r.id)}">＋</button>
+          <button class="icon ${r.pub ? "on" : ""}" data-a="relPub" data-id="${esc(r.id)}" title="${r.pub ? "Os jogadores veem" : "Só você vê"}">${r.pub ? "👁" : "🙈"}</button><button class="icon ghost danger" data-a="relDel" data-id="${esc(r.id)}" title="Apagar">✕</button></div></div>`).join("") || `<p class="muted small">Ex.: “A Coroa desperta” (6), “Os cultistas chegam” (4).</p>`}</div>
+      <div class="row wrap"><input id="relNome" placeholder="Nome do relógio"><select id="relSeg">${[4, 6, 8, 10, 12].map((n) => `<option ${n === 6 ? "selected" : ""}>${n}</option>`).join("")}</select>
+        <label class="chk small"><input type="checkbox" id="relPubNovo"> Visível</label><button class="primary" data-a="relNovo">＋</button></div>
+      <p class="muted small">Clique numa fatia para marcar até ela. Relógios visíveis aparecem para os jogadores e avisam a mesa quando avançam.</p></section>
+    <section class="card"><h3>Cronômetro</h3>
+      ${t ? `<div class="timer"><span>⏳ ${esc(t.nome || "Cronômetro")} ${t.pub ? "· 👁 todos veem" : "· 🙈 só você"}</span><b class="countdown" data-fim="${num(t.fim)}">${restante(t.fim)}</b></div>
+        <div class="row"><button data-a="timerMais">＋1 min</button><button class="ghost danger" data-a="timerParar">Parar</button></div>`
+      : `<div class="row wrap"><input id="timerNome" placeholder="Ex.: O teto desaba em…"><input type="number" min="0.5" step="0.5" id="timerMin" class="n3" value="5" title="Minutos"><span class="small muted">min</span>
+        <label class="chk small"><input type="checkbox" id="timerPub" checked> Visível</label><button class="primary" data-a="timerIniciar">▶</button></div>`}
+      <p class="muted small">Quando acabar, todos recebem um aviso com o sino.</p></section>
+    <section class="card"><h3>Notas desta cena</h3>
+      ${cena ? `<input id="cenaNome" placeholder="Nome da cena (ex.: Picadeiro, noite 2)" value="${esc(cena.nome)}">
+        <textarea id="cenaTxt" rows="7" placeholder="O que acontece aqui, quem está escondido, o que os agentes podem achar…">${esc(cena.txt)}</textarea>` : `<p class="muted small">Abra uma cena no Owlbear para ter notas por cena.</p>`}
+      ${outras.length ? `<details><summary class="small">Outras cenas (${outras.length})</summary>${outras.map(([k, v]) => `<div class="outra"><b>${esc(v.nome || "Cena sem nome")}</b><span class="muted small"> · ${v.at ? new Date(v.at).toLocaleDateString("pt-BR") : ""}</span><div class="small pre">${esc(v.txt)}</div></div>`).join("")}</details>` : ""}</section>
+    <section class="card"><h3>Notas gerais</h3>
+      <textarea id="notas" rows="6" placeholder="Segredos, ganchos, próximos encontros…">${esc(mine.notas)}</textarea></section>`;
+}
+
 async function tokensOf(e) {
   if (!sceneOk) return [];
   try {
@@ -470,6 +607,7 @@ function anunciarVez() {
   const c = C(); const e = c.lista[c.vez]; if (!e) return;
   toast(`Rodada ${c.rodada}: vez de ${cNome(e)}`);
   if (c.anunciar && obrOk) OBR.broadcast.sendMessage(CH, { kind: "turno", text: `⚔ Rodada ${c.rodada}: vez de ${nomePublico(e)}` }).catch(() => {});
+  seguirVez();
 }
 // No início do turno, as condições com prazo perdem uma rodada
 function tickConds(e) {
@@ -521,11 +659,39 @@ function viewFerramentas() {
       <p class="muted small">Aparece como notificação para todos os jogadores.</p></section>
     <section class="card"><h3>Gerador de nomes</h3>
       <div class="row"><button data-a="nome">🎲 Pessoa</button><button data-a="nomeCirco">🎪 Do circo</button><span class="gen">${esc(ui.nome || "")}</span></div></section>
-    <section class="card"><h3>Notas do mestre</h3>
-      <textarea id="notas" rows="8" placeholder="Segredos, ganchos, próximos encontros…">${esc(mine.notas)}</textarea></section>
     <section class="card"><h3>Condições</h3>
       <dl class="conds">${CONDICOES.map(([n, d]) => `<dt>${esc(n)}</dt><dd>${esc(d)}</dd>`).join("")}</dl></section>`;
 }
+
+/* ---------- Parte pública (fica na sala; todos leem) ---------- */
+function montarPub() {
+  return {
+    relogios: mine.relogios.filter((r) => r.pub).map(({ id, nome, seg, atual }) => ({ id, nome, seg, atual })),
+    timer: mine.timer?.pub ? { nome: mine.timer.nome, fim: mine.timer.fim } : null,
+    amb: { loops: [...mine.amb.loops], url: mine.amb.url, urlVol: mine.amb.urlVol }, rev: Date.now(),
+  };
+}
+let pubTimer;
+function publicar() {
+  saveMine(); pub = montarPub();
+  if (!obrOk) return;
+  clearTimeout(pubTimer);
+  pubTimer = setTimeout(() => OBR.room.setMetadata({ [PUB_KEY]: pub }).catch(() => toast("Não deu para salvar na sala.")), 150);
+}
+function som(k) {
+  if (ui.previa || !obrOk) { tocarLocal(k); return; }
+  OBR.broadcast.sendMessage(CH, { kind: "som", k }, { destination: "ALL" }).catch(() => toast("Não deu para enviar o som."));
+}
+function relAvisar(r) { if (r.pub) anunciar(`🕒 ${r.nome}: ${num(r.atual)}/${num(r.seg)}${num(r.atual) >= num(r.seg) ? " — completo!" : ""}`); }
+function findRel(id) { return mine.relogios.find((r) => r.id === id); }
+async function lerCena() {
+  cenaId = null; if (!sceneOk) return;
+  try {
+    const md = await OBR.scene.getMetadata(); cenaId = md[CENA_KEY] || null;
+    if (!cenaId && isGM()) { cenaId = uid(); await OBR.scene.setMetadata({ [CENA_KEY]: cenaId }); }
+  } catch { /* */ }
+}
+setInterval(() => { for (const el of document.querySelectorAll(".countdown")) el.textContent = restante(el.dataset.fim); }, 1000);
 
 /* ---------- Eventos ---------- */
 function val(id) { return document.getElementById(id)?.value ?? ""; }
@@ -545,16 +711,34 @@ $app.addEventListener("change", (ev) => {
   if (d.a === "soOnline") { mine.soOnline = el.checked; saveMine(); render(); return; }
   if (d.a === "cAnel") { C().anel = el.checked; saveMine(); updateRing(); return; }
   if (d.a === "cAnunciar") { C().anunciar = el.checked; saveMine(); return; }
+  if (d.a === "cSeguir") { C().seguir = el.checked; saveMine(); if (el.checked) seguirVez(); return; }
+  if (el.id === "genTipo") { mine.gen.tipo = el.value; saveMine(); return; }
+  if (el.id === "genVd") { mine.gen.vd = num(el.value); saveMine(); return; }
+  if (el.id === "genPapel") { mine.gen.papel = el.value; saveMine(); return; }
+  if (el.id === "somPrevia") { ui.previa = el.checked; return; }
+  if (el.id === "ambVol") { mine.amb.urlVol = clamp(num(el.value) / 100, 0, 1); publicar(); return; }
 });
 let notasTimer;
 $app.addEventListener("input", (ev) => {
-  if (ev.target.id === "notas") { mine.notas = ev.target.value; clearTimeout(notasTimer); notasTimer = setTimeout(saveMine, 400); }
+  const el = ev.target;
+  if (el.id === "notas") { mine.notas = el.value; clearTimeout(notasTimer); notasTimer = setTimeout(saveMine, 400); }
+  if ((el.id === "cenaTxt" || el.id === "cenaNome") && cenaId) {
+    const c = (mine.cenas[cenaId] ||= { nome: "", txt: "", at: 0 }); c[el.id === "cenaTxt" ? "txt" : "nome"] = el.value; c.at = Date.now();
+    clearTimeout(notasTimer); notasTimer = setTimeout(saveMine, 400);
+  }
+  if (el.id === "volJog") {
+    lsSet(`${NS}:vol`, String(num(el.value) / 100)); setVolLocal(num(el.value) / 100);
+    const t = document.getElementById("volTxt"); if (t) t.textContent = `${el.value}%`;
+  }
 });
 $app.addEventListener("keydown", (ev) => {
   if (ev.key !== "Enter") return;
   const id = ev.target.id;
   if (id === "exprLivre") document.querySelector('[data-a="exprRolar"]')?.click();
   else if (id === "anuncio") document.querySelector('[data-a="anunciar"]')?.click();
+  else if (id === "relNome") document.querySelector('[data-a="relNovo"]')?.click();
+  else if (id === "ambUrl") document.querySelector('[data-a="ambUrl"]')?.click();
+  else if (id === "timerNome" || id === "timerMin") document.querySelector('[data-a="timerIniciar"]')?.click();
   else if (id?.startsWith("v-")) document.querySelector(`[data-a="dano"][data-id="${id.slice(2)}"]`)?.click();
   else if (id?.startsWith("cv-")) document.querySelector(`[data-a="cDano"][data-id="${id.slice(3)}"]`)?.click();
 });
@@ -709,6 +893,61 @@ $app.addEventListener("click", async (ev) => {
     case "anunciar": { const t = val("anuncio").trim(); if (!t) return; anunciar(`📢 ${t}`); toast("Anúncio enviado."); document.getElementById("anuncio").value = ""; return; }
     case "nome": ui.nome = `${pick(NOMES)} ${pick(SOBRENOMES)}`; return render();
     case "nomeCirco": ui.nome = `${pick(NOMES)}, ${pick(APELIDOS)}`; return render();
+
+    /* Combate: tokens e gerador */
+    case "cAddSel": return addSelecionados();
+    case "gerar": mine.gen = { tipo: val("genTipo") || mine.gen.tipo, vd: num(val("genVd")) || mine.gen.vd, papel: val("genPapel") || mine.gen.papel }; saveMine(); ui.gerado = gerarNpc(mine.gen); return render();
+    case "genNome": { if (!ui.gerado) return; const novo = gerarNpc(mine.gen); ui.gerado.nome = novo.nome; return render(); }
+    case "genCombate": {
+      const g = ui.gerado; if (!g) return; const q = clamp(num(val("genQtd")) || 1, 1, 20);
+      for (let k = 0; k < q; k++) addCombatente({ nome: q > 1 ? `${g.nome} ${k + 1}` : g.nome, cri: { nome: g.nome, ...g.cri }, pv: g.pv, pvMax: g.pv, def: g.def, oculto: true });
+      toast(`${q > 1 ? `${q}× ` : ""}${g.nome} no combate.`); return render();
+    }
+    case "genSalvar": { if (!ui.gerado) return; (mine.npcs ||= []).unshift(geradoParaBestiario(ui.gerado)); mine.npcs = mine.npcs.slice(0, 40); saveMine(); toast("Guardado: aparece em “Criatura do bestiário…”."); return render(); }
+    case "genApagar": mine.npcs = (mine.npcs || []).filter((n) => n.id !== id); saveMine(); return render();
+    case "genCopiar": {
+      const g = ui.gerado; if (!g) return; const c = g.cri;
+      const t = `${g.nome} — ${c.tipo}, VD ${c.vd}\nDefesa ${g.def} · PV ${g.pv} · Desloc. ${c.desl}\nIniciativa ${c.ini} · Percepção ${c.per} · Fortitude ${c.res.Fortitude} · Reflexos ${c.res.Reflexos} · Vontade ${c.res.Vontade}${c.rd ? `\nResistências: ${c.rd}` : ""}${c.vuln ? ` · Vulnerável: ${c.vuln}` : ""}${c.pp ? `\nPresença perturbadora: ${c.pp}` : ""}\n${c.atq.map((a) => `${a[0]}: ${a[1]} (${a[2]} ${a[3]})`).join("\n")}\n${c.hab.join("\n")}`;
+      try { await navigator.clipboard.writeText(t); toast("Copiado."); } catch { toast("Não deu para copiar aqui."); }
+      return;
+    }
+
+    /* Cena: sons */
+    case "som": return som(b.dataset.k);
+    case "amb": { const k = b.dataset.k; const L = mine.amb.loops; mine.amb.loops = L.includes(k) ? L.filter((x) => x !== k) : [...L, k]; publicar(); return render(); }
+    case "ambUrl": {
+      const u = val("ambUrl").trim(); if (!/^https:\/\/\S+$/i.test(u)) return toast("Cole um link https:// direto para um arquivo de áudio.");
+      mine.amb.url = u; publicar(); toast("Música tocando para todos."); return render();
+    }
+    case "ambUrlStop": mine.amb.url = ""; publicar(); return render();
+    case "ambParar": mine.amb.loops = []; mine.amb.url = ""; publicar(); return render();
+
+    /* Cena: relógios */
+    case "relNovo": {
+      const nome = val("relNome").trim(); if (!nome) return toast("Dê um nome ao relógio.");
+      mine.relogios.push({ id: uid(), nome: nome.slice(0, 40), seg: clamp(num(val("relSeg")) || 6, 2, 12), atual: 0, pub: !!document.getElementById("relPubNovo")?.checked });
+      publicar(); return render();
+    }
+    case "relMais": case "relMenos": case "relFatia": {
+      const r = findRel(id); if (!r) return;
+      if (a === "relFatia") { const i = num(b.dataset.i); r.atual = r.atual === i + 1 ? i : i + 1; }
+      else r.atual = clamp(num(r.atual) + (a === "relMais" ? 1 : -1), 0, num(r.seg));
+      publicar(); relAvisar(r); if (num(r.atual) >= num(r.seg)) toast(`🕒 ${r.nome} completou!`); return render();
+    }
+    case "relPub": { const r = findRel(id); if (!r) return; r.pub = !r.pub; publicar(); if (r.pub) relAvisar(r); return render(); }
+    case "relDel": {
+      if (!b.classList.contains("confirm")) { b.classList.add("confirm"); b.textContent = "?"; b.title = "Clique de novo para apagar"; return; }
+      mine.relogios = mine.relogios.filter((r) => r.id !== id); publicar(); return render();
+    }
+
+    /* Cena: cronômetro */
+    case "timerIniciar": {
+      const min = num(val("timerMin")); if (min <= 0) return toast("Quantos minutos?");
+      mine.timer = { nome: val("timerNome").trim().slice(0, 50) || "Cronômetro", fim: Date.now() + min * 60000, pub: !!document.getElementById("timerPub")?.checked };
+      publicar(); if (mine.timer.pub) anunciar(`⏳ ${mine.timer.nome}: ${String(min).replace(".", ",")} min`); return render();
+    }
+    case "timerMais": if (!mine.timer) return; mine.timer.fim = Math.max(Date.now(), num(mine.timer.fim)) + 60000; publicar(); return render();
+    case "timerParar": mine.timer = null; publicar(); return render();
   }
 });
 
@@ -717,6 +956,7 @@ window.addEventListener("storage", (e) => {
   if (!isGM()) return;
   if ([fichaKey(), hxKey(), logKey()].includes(e.key)) softRender();
   if (e.key === mineKey()) { loadMine(); softRender(); }
+  if (e.key === FILA()) processarFila();
 });
 
 async function start() {
@@ -728,13 +968,21 @@ async function start() {
   OBR.onReady(async () => {
     obrOk = true; roomId = OBR.room.id;
     [role, me.id, me.name] = await Promise.all([OBR.player.getRole(), OBR.player.getId(), OBR.player.getName()]);
-    loadMine(); render();
+    loadMine(); setVolLocal(volJogador());
+    try { pub = (await OBR.room.getMetadata())[PUB_KEY] || null; } catch { pub = null; }
+    render();
+    OBR.room.onMetadataChange((md) => { const x = md[PUB_KEY]; if (!isGM() && x) { pub = x; softRender(); } });
     OBR.player.onChange((p) => { if (p.role !== role) { role = p.role; render(); } });
     try { party = await OBR.party.getPlayers(); } catch { party = []; }
     OBR.party.onChange((ps) => { party = ps; softRender(); });
     sceneOk = await OBR.scene.isReady();
-    OBR.scene.onReadyChange((r) => { sceneOk = r; if (r) updateRing(); });
-    if (isGM()) { fichaSend({ t: "request" }); render(); }
+    await lerCena();
+    OBR.scene.onReadyChange(async (r) => { sceneOk = r; await lerCena(); if (r) { updateRing(); processarFila(); } softRender(); });
+    if (isGM()) {
+      fichaSend({ t: "request" }); processarFila();
+      if (!pub || JSON.stringify(pub.amb) !== JSON.stringify(montarPub().amb) || (pub.relogios || []).length !== mine.relogios.filter((r) => r.pub).length) publicar();
+      render();
+    }
   });
 }
 start();

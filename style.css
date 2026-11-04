@@ -152,3 +152,31 @@ details summary { cursor: pointer; color: var(--muted); font-size: 12.5px; }
   body { max-width: 1000px; margin: 0 auto; }
   .pcs { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; align-items: start; }
 }
+
+/* v1.1 — Cena: sons, relógios, cronômetro, notas; gerador de NPC */
+.sons { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 5px; margin-bottom: 6px; }
+.sons button { text-align: left; white-space: normal; font-size: 13px; padding: 7px 8px; }
+.sons button.on { background: #3a0d16; border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+button.icon.on { border-color: var(--accent); }
+input[type=range] { flex: 1; accent-color: var(--accent); padding: 0; background: transparent; border: 0; }
+.clocks { display: flex; flex-wrap: wrap; gap: 12px; margin: 6px 0; }
+.clockbox { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.clock { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.clock path { fill: var(--panel2); stroke: var(--line); stroke-width: 1.2; cursor: default; }
+.clock path[data-a] { cursor: pointer; }
+.clock path[data-a]:hover { fill: #3a2228; }
+.clock path.on { fill: var(--accent); stroke: #ff6b7d; }
+.clock .aro { fill: none; stroke: #6b6b78; stroke-width: 1.5; }
+.clock.cheio .aro { stroke: #ff6b7d; stroke-width: 2.5; }
+.clock figcaption { font-size: 12px; text-align: center; max-width: 110px; line-height: 1.2; }
+.clock figcaption small { display: block; color: var(--muted); }
+.timer { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; background: var(--panel2); border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; }
+.countdown { font-family: Cinzel, serif; font-size: 22px; font-variant-numeric: tabular-nums; color: #ff8b9b; }
+.outra { border-top: 1px solid var(--line); padding: 6px 0; }
+.pre { white-space: pre-wrap; color: var(--muted); max-height: 140px; overflow: auto; }
+.card input#cenaNome { width: 100%; margin-bottom: 6px; }
+.mesa-pub { text-align: left; }
+.gerado { background: var(--panel2); border-radius: 8px; padding: 8px 10px; margin-top: 8px; }
+.gstats { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 4px; font-size: 13px; }
+.gl { margin: 6px 0; padding-left: 18px; }
+.gl li { margin: 2px 0; }
