@@ -187,3 +187,15 @@ input[type=range] { flex: 1; accent-color: var(--accent); padding: 0; background
 .gerado .habs li { margin: 4px 0; }
 .lore p { margin: 4px 0; font-style: italic; }
 .lore li, ul.lore li { margin: 3px 0; }
+.ouvintes { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 4px; }
+.ouvintes li { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; padding: 4px 8px; border-radius: 6px; background: var(--panel2); border-left: 3px solid #666; }
+.ouvintes li small { flex-basis: 100%; }
+.ouvintes .o-ok { border-left-color: #2f9e5b; } .ouvintes .o-bloq, .ouvintes .o-sem { border-left-color: #c8102e; } .ouvintes .o-mudo { border-left-color: #d4a017; }
+/* v1.3 — gerador de equipe */
+.gmodo { display: flex; gap: 4px; margin: 0 0 8px; }
+.gmodo button { flex: 1; }
+.gmodo button.on { background: var(--accent, #c8102e); border-color: var(--accent, #c8102e); color: #fff; }
+.membro { border-top: 1px solid var(--line, #3a2a2e); padding: 6px 0; }
+.membro summary { cursor: pointer; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.membro summary .icon { margin-left: auto; }
+.membro[open] summary { margin-bottom: 4px; }

@@ -50,6 +50,9 @@ async function abrirCaixaDeSom() {
     });
   } catch { /* */ }
 }
+// se a caixa de som não der sinal de vida, abre de novo
+let caixaViva = false, meuId = "";
+function vigiarCaixa() { setTimeout(() => { if (!caixaViva) abrirCaixaDeSom(); }, 15000); }
 function tocar(k) { OBR.broadcast.sendMessage(CH, { kind: "som", k }, { destination: "LOCAL" }).catch(() => {}); }
 
 /* ---------- Cronômetro (guardado na sala) ---------- */
@@ -105,6 +108,12 @@ OBR.onReady(async () => {
   OBR.broadcast.onMessage(CH, (ev) => {
     const d = ev.data || {};
     if ((d.kind === "turno" || d.kind === "anuncio") && d.text) OBR.notification.show(d.text);
+    if (d.kind === "ouvinte" && d.id === meuId) caixaViva = true;
+    // o mestre avisou que esta pessoa está sem som
+    if (d.kind === "aviso" && Array.isArray(d.ids) && d.ids.includes(meuId)) {
+      OBR.notification.show(d.text || "🔇 Clique no botão de som no canto de baixo, à esquerda, para ouvir o mestre.", "WARNING");
+      if (d.reabrir) { caixaViva = false; abrirCaixaDeSom(); }
+    }
     // a caixa de som pediu a ambientação (a sala pode estar sem espaço para guardá-la)
     if (d.kind === "pedePub" && role === "GM") {
       try { const pub = JSON.parse(localStorage.getItem(`${NS}:pub:${roomId}`) || "null"); if (pub) OBR.broadcast.sendMessage(CH, { kind: "pub", pub }, { destination: "REMOTE" }); } catch { /* */ }
@@ -113,5 +122,6 @@ OBR.onReady(async () => {
   try { aplicarPub((await OBR.room.getMetadata())[PUB_KEY] || null); } catch { /* */ }
   OBR.room.onMetadataChange((md) => { if (PUB_KEY in md) aplicarPub(md[PUB_KEY]); });
   menuCombate();
-  abrirCaixaDeSom();
+  try { meuId = await OBR.player.getId(); } catch { /* */ }
+  abrirCaixaDeSom(); vigiarCaixa();
 });

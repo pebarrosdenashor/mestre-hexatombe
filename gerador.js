@@ -19,8 +19,8 @@ const TAB = {
 };
 const DT = { 10: 13, 20: 15, 40: 17, 60: 18, 80: 20, 100: 22, 120: 23, 160: 26 };
 const DADO_EL = { 10: "1d4", 20: "1d6", 40: "1d6", 60: "1d8", 80: "1d8", 100: "2d6", 120: "1d10", 160: "2d10" };
-const DANO_HAB = { 10: "2d6", 20: "3d6", 40: "3d8", 60: "4d8", 80: "6d6", 100: "6d8", 120: "8d8", 160: "10d8" };
-const CURA = { 10: "1d8", 20: "2d8", 40: "3d8", 60: "4d8", 80: "5d8", 100: "6d8", 120: "7d8", 160: "9d8" };
+export const DANO_HAB = { 10: "2d6", 20: "3d6", 40: "3d8", 60: "4d8", 80: "6d6", 100: "6d8", 120: "8d8", 160: "10d8" };
+export const CURA = { 10: "1d8", 20: "2d8", 40: "3d8", 60: "4d8", 80: "5d8", 100: "6d8", 120: "7d8", 160: "9d8" };
 
 export const TIPOS = [
   ["humano", "Pessoa armada"], ["civil", "Civil / testemunha"], ["cultista", "Cultista"], ["circo", "Artista do circo"],
@@ -31,9 +31,9 @@ export const PAPEIS = [["lacaio", "Lacaio (fraco, em bando)"], ["comum", "Comum"
 const ELEMENTOS = ["Sangue", "Morte", "Conhecimento", "Energia"];
 const FRACO = { Sangue: "Morte", Morte: "Energia", Energia: "Conhecimento", Conhecimento: "Sangue", Medo: "" };
 
-const pick = (a) => a[Math.floor(Math.random() * a.length)];
-function sortear(a, n) { const c = [...a]; const out = []; while (c.length && out.length < n) out.push(c.splice(Math.floor(Math.random() * c.length), 1)[0]); return out; }
-const chance = (p) => Math.random() < p;
+export const pick = (a) => a[Math.floor(Math.random() * a.length)];
+export function sortear(a, n) { const c = [...a]; const out = []; while (c.length && out.length < n) out.push(c.splice(Math.floor(Math.random() * c.length), 1)[0]); return out; }
+export const chance = (p) => Math.random() < p;
 
 /* ---------- Nomes ---------- */
 const NOMES = {
@@ -44,7 +44,7 @@ const gen = (ctx, m, f) => (ctx.g === "f" ? f : m);
 const SOBRENOMES = ["Silva", "Souza", "Pereira", "Costa", "Nogueira", "Barros", "Ferraz", "Rocha", "Moraes", "Prado", "Siqueira", "Fonseca", "Lacerda", "Albuquerque", "Bittencourt", "Cardoso", "Damasceno", "Esteves", "Galvão", "Mendonça", "Queiroz", "Teixeira", "Vasconcelos"];
 const APELIDOS = ["Dente-de-Ouro", "Tição", "Ferrugem", "Mão-Leve", "Corvo", "Baixinho", "Cicatriz", "Doutor", "Vela", "Coruja", "Fumaça", "Navalha", "Padre", "Sorriso"];
 const LUGARES = ["da Lona Rasgada", "do Picadeiro", "do Poço Seco", "da Estrada Velha", "da Mata Fechada", "do Necrotério", "do Trem Parado", "das Jaulas", "do Lago Escuro", "da Capela", "do Galpão", "da Roda-Gigante", "do Porão", "da Rodovia"];
-function nomePessoa(g) {
+export function nomePessoa(g) {
   const pn = pick(NOMES[g] || NOMES.m); const sn = pick(SOBRENOMES);
   return chance(0.3) ? `${pn} “${pick(APELIDOS)}” ${sn}` : `${pn} ${sn}`;
 }
@@ -61,7 +61,7 @@ function atributos(vd, foco) {
 /* ---------- Habilidades ----------
    Cada uma: [nome, ação, texto]. No texto: {dt} vira a DT, {d} o dado elemental,
    {h} o dano de habilidade e {c} a cura, todos pela escala do VD. */
-const H = {
+export const H = {
   humano: [
     ["Cobertura", "passiva", "+5 na Defesa enquanto estiver atrás de cobertura."],
     ["Tiro certeiro", "1×/cena", "Soma +{d} ao dano de um ataque à distância."],
@@ -175,7 +175,7 @@ const CHEFE = [
 ];
 const LACAIO = ["Lacaio", "passiva", "Cai ao sofrer qualquer dano que passe da metade dos PV de uma vez."];
 
-function habTxt([n, a, t], ctx) {
+export function habTxt([n, a, t], ctx) {
   const txt = t.replaceAll("{dt}", ctx.dt).replaceAll("{d}", ctx.d).replaceAll("{h}", ctx.h).replaceAll("{c}", ctx.c).replaceAll("{vd}", ctx.vd);
   return `${n}${a && a !== "—" ? ` (${a})` : ""}: ${txt}`;
 }
@@ -195,7 +195,7 @@ function sortearHabs(ctx) {
 }
 
 /* ---------- História ---------- */
-const L = {
+export const L = {
   humano: {
     quem: [["Policial militar", "Policial militar", "Pistola"], ["Segurança particular", "Segurança particular", "Revólver"], ["Caçador da região", "Caçadora da região", "Fuzil de caça"], ["Mercenário contratado", "Mercenária contratada", "Submetralhadora"], ["Capanga de fazendeiro", "Capanga de fazendeiro", "Escopeta"], ["Investigador de uma organização rival", "Investigadora de uma organização rival", "Pistola"], ["Ex-agente que abandonou a Ordem", "Ex-agente que abandonou a Ordem", "Pistola"], ["Contrabandista", "Contrabandista", "Revólver"]],
     aparencia: ["colete surrado e botas enlameadas", "óculos escuros mesmo à noite", "uma cicatriz que atravessa a boca", "terno barato com manchas de graxa", "boné de time e um crucifixo no pescoço", "tatuagem de cadeia nos dedos", "farda impecável demais para o lugar", "mãos trêmulas e cheiro de cachaça"],

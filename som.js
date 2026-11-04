@@ -1,5 +1,6 @@
 import OBR from "https://cdn.jsdelivr.net/npm/@owlbear-rodeo/sdk@3.1.0/+esm";
-import { tocar, laco, lacosAtivos, musica, setVolume, estado, aoMudarEstado, destravar, AMBIENTES } from "./sons.js";
+import { tocar, laco, lacosAtivos, musica, setVolume, estado, aoMudarEstado, destravar, AMBIENTES } from "./sons.js?v=1.3";
+const VERSAO = "1.3";
 
 /* Caixa de som: um botãozinho no canto da tela de cada pessoa da sala.
    Os navegadores só deixam tocar som numa janela em que a pessoa clicou,
@@ -18,7 +19,7 @@ let aberto = false, ultimoPub = null;
 const VOL = `${NS}:vol`;
 function lerVol() { try { const v = localStorage.getItem(VOL); return v === null ? 0.8 : Math.max(0, Math.min(1, Number(v) || 0)); } catch { return 0.8; } }
 function aplicarVol() { const v = lerVol(); setVolume(v); $vol.value = Math.round(v * 100); $pct.textContent = `${Math.round(v * 100)}%`; desenhar(); }
-$vol.addEventListener("input", () => { try { localStorage.setItem(VOL, String(Number($vol.value) / 100)); } catch { /* */ } aplicarVol(); });
+$vol.addEventListener("input", () => { try { localStorage.setItem(VOL, String(Number($vol.value) / 100)); } catch { /* */ } aplicarVol(); relatarLogo(); });
 window.addEventListener("storage", (e) => { if (e.key === VOL) aplicarVol(); });
 
 /* ---------- Aparência ---------- */
@@ -51,7 +52,15 @@ $btn.addEventListener("click", async () => {
 });
 // qualquer clique aqui também serve para liberar
 document.addEventListener("pointerdown", () => { if (estado() !== "running") destravar().then(desenhar); }, true);
-aoMudarEstado(() => { aplicarAmbiente(ultimoPub, true); desenhar(); });
+aoMudarEstado(() => { aplicarAmbiente(ultimoPub, true); desenhar(); relatar(); });
+
+/* ---------- Avisa o mestre se esta pessoa está ouvindo ---------- */
+let meId = "", meNome = "", relTimer = null;
+function relatar() {
+  if (!meId) return;
+  OBR.broadcast.sendMessage(CH, { kind: "ouvinte", id: meId, nome: meNome, estado: estado(), vol: lerVol(), v: VERSAO }, { destination: "ALL" }).catch(() => {});
+}
+function relatarLogo() { clearTimeout(relTimer); relTimer = setTimeout(relatar, 600); }
 
 /* ---------- Ambientação e música ---------- */
 function aplicarAmbiente(p, forcar = false) {
@@ -71,7 +80,11 @@ OBR.onReady(async () => {
     const d = ev.data || {};
     if (d.kind === "som" && d.k) tocar(String(d.k));
     if (d.kind === "pub" && d.pub) aplicarAmbiente(d.pub);
+    if (d.kind === "quemOuve") relatarLogo();
   });
+  try { [meId, meNome] = await Promise.all([OBR.player.getId(), OBR.player.getName()]); } catch { /* */ }
+  OBR.player.onChange((p) => { if (p.name && p.name !== meNome) { meNome = p.name; relatarLogo(); } });
+  relatar(); setInterval(relatar, 20000);
   try { aplicarAmbiente((await OBR.room.getMetadata())[PUB_KEY] || null); } catch { /* */ }
   OBR.room.onMetadataChange((md) => { if (md[PUB_KEY]) aplicarAmbiente(md[PUB_KEY]); });
   // se a sala não tiver espaço para guardar a ambientação, o mestre responde por mensagem

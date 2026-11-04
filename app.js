@@ -1,6 +1,7 @@
 import OBR, { buildShape } from "https://cdn.jsdelivr.net/npm/@owlbear-rodeo/sdk@3.1.0/+esm";
 import { CONDICOES, ESTIGMAS, BESTIARIO } from "./dados.js";
 import { EFEITOS, AMBIENTES, tocar as tocarLocal, setVolume as setVolLocal } from "./sons.js";
+import { gerarEquipe, outroMembro, outraHistoriaEquipe, equipeTexto, membroTexto, NEXS, TEMAS } from "./equipe.js";
 import { gerarNpc, VDS, TIPOS, PAPEIS, outrasHabilidades, outraHistoria, outroNome, loreTexto } from "./gerador.js";
 
 /* =========================================================
@@ -485,10 +486,56 @@ function habHTML(h) {
   const m = /^([^:(]{2,40}(?: \([^)]*\))?):\s(.*)$/s.exec(String(h));
   return m ? `<b>${esc(m[1])}:</b> ${esc(m[2])}` : esc(h);
 }
+/* ---------- Gerador de equipe do Hexatombe ---------- */
+const HX_IMPORT = HX_NS + ":importar";
+function membroHTML(m, i) {
+  return `<details class="membro"><summary><b>${esc(m.nome)}</b> <span class="muted small">${esc(m.tipo)}${m.lealdade === "pode desertar" ? ` · <span class="danger">pode desertar</span>` : ""}</span>
+      <button class="icon ghost" data-a="eqMembro" data-i="${i}" title="Sortear outra pessoa para esta função">🎲</button></summary>
+    <div class="gstats"><span>Def <b>${esc(m.def)}</b></span><span>PV <b>${esc(m.pv)}</b></span><span>PE <b>${esc(m.pe)}</b></span><span>Ini <b>${esc(m.ini)}</b></span><span>Perc. <b>${esc(m.per)}</b></span></div>
+    <div class="small attrs">${esc(m.attrs)}</div>
+    <div class="small">Fort ${esc(m.res.Fortitude)} · Ref ${esc(m.res.Reflexos)} · Von ${esc(m.res.Vontade)}</div>
+    <div class="small">Perícias: ${m.pericias.map((p) => `${esc(p[0])} ${esc(p[1])}`).join(" · ")}</div>
+    <ul class="small gl">${m.atq.map((a) => `<li><b>${esc(a[0])}</b> ${esc(a[1])} · ${esc(a[2])} ${esc(a[3])}</li>`).join("")}</ul>
+    <ul class="small gl habs">${m.hab.map((h) => `<li>${habHTML(h)}</li>`).join("")}</ul>
+    <div class="lore small"><ul class="gl">${m.historia.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>
+  </details>`;
+}
+function viewGeradorEquipe() {
+  const o = mine.genEq ||= { tema: "sorteio", nex: 35, tam: 4 };
+  const e = ui.equipe; const h = hx();
+  const alvos = (h?.equipes || []).map((t, i) => [i, t, (t.membros || []).length]);
+  const livre = alvos.find(([, , n]) => !n);
+  const alvoSel = ui.eqAlvo ?? (livre ? livre[0] : 0);
+  return `<div class="row wrap"><select id="eqTema" title="Tipo de equipe">${TEMAS.map(([k, n]) => `<option value="${k}" ${o.tema === k ? "selected" : ""}>${n}</option>`).join("")}</select>
+      <select id="eqNex" title="NEX dos integrantes">${NEXS.map((n) => `<option value="${n}" ${num(o.nex) === n ? "selected" : ""}>NEX ${n}%</option>`).join("")}</select>
+      <select id="eqTam" title="Quantos integrantes">${[2, 3, 4, 5, 6].map((n) => `<option value="${n}" ${num(o.tam) === n ? "selected" : ""}>${n} pessoas</option>`).join("")}</select>
+      <button class="primary" data-a="eqGerar">🎲 Gerar equipe</button></div>
+    ${e ? `<div class="gerado">
+      <div class="row between"><b class="gen">${esc(e.nome)}</b><span class="muted small">${esc(e.temaNome)} · NEX ${e.nex}%</span></div>
+      <p class="small lore"><i>${esc(e.lema)}</i></p>
+      <div class="row between ghead"><b class="small">A equipe</b><button class="ghost small" data-a="eqHist" title="Sorteia outra história, mantendo as pessoas">🎲 Outra</button></div>
+      <div class="lore small"><p>${esc(e.conceito)}</p><ul class="gl">
+        <li><b>Desejo:</b> ${esc(e.desejo)}.</li><li><b>Estratégia:</b> ${esc(e.estrategia)}</li>
+        <li><b>Segredo:</b> ${esc(e.segredo)}.</li><li><b>Ponto fraco:</b> ${esc(e.fraqueza)}.</li>
+        ${e.tensoes.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>
+      <div class="row between ghead"><b class="small">Integrantes (${e.membros.length})</b></div>
+      ${e.membros.map(membroHTML).join("")}
+      <div class="ghead">
+        ${h ? `<div class="row wrap"><span class="small">Pôr no Hexatombe como</span><select id="eqAlvo">${alvos.map(([i, t, n]) => `<option value="${i}" ${i === alvoSel ? "selected" : ""}>${esc(t.nome)}${n ? ` (${n} membro${n > 1 ? "s" : ""}: os NPCs saem)` : " (vazia)"}</option>`).join("")}</select>
+          <button class="primary" data-a="eqHexa">⛺ Pôr no Hexatombe</button></div>
+          <p class="muted small">A equipe ganha o nome gerado, os integrantes viram NPCs da aba NPCs e o plano vai para o “Plano secreto do mestre”. Fichas de jogadores dessa equipe não saem.</p>`
+        : `<div class="row wrap"><button class="primary" data-a="eqHexa">⛺ Pôr no Hexatombe</button></div><p class="muted small">Vai para a primeira equipe vazia do Hexatombe quando ele abrir nesta sala.</p>`}
+        <div class="row wrap"><button data-a="eqCombate">＋ Todos no combate</button><button class="ghost" data-a="eqCopiar">📋 Copiar</button></div>
+      </div></div>`
+    : `<p class="muted small">Cria uma equipe rival para o Hexatombe: nome, lema, o que querem pedir no desejo, estratégia, segredo, tensões entre eles e de 2 a 6 agentes com PV, PE, Defesa, perícias, ataques, habilidades da função e um pouco de história (inclusive quem pode desertar). Os números são aproximados, na escala do NEX.</p>`}`;
+}
 function viewGerador() {
   const g = mine.gen;
   const salvos = mine.npcs || [];
-  return `<section class="card"><h3>Gerador de NPC</h3>
+  const modo = ui.genModo || "npc";
+  const seg = `<nav class="seg gmodo"><button data-a="genModo" data-k="npc" class="${modo === "npc" ? "on" : ""}">👤 NPC</button><button data-a="genModo" data-k="equipe" class="${modo === "equipe" ? "on" : ""}">👥 Equipe do Hexatombe</button></nav>`;
+  if (modo === "equipe") return `<section class="card"><h3>Gerador</h3>${seg}${viewGeradorEquipe()}</section>`;
+  return `<section class="card"><h3>Gerador</h3>${seg}
     <div class="row wrap"><select id="genTipo">${TIPOS.map(([k, n]) => `<option value="${k}" ${g.tipo === k ? "selected" : ""}>${n}</option>`).join("")}</select>
       <select id="genVd" title="Nível da ameaça (VD)">${VDS.map((v) => `<option value="${v}" ${num(g.vd) === v ? "selected" : ""}>VD ${v}</option>`).join("")}</select>
       <select id="genPapel">${PAPEIS.map(([k, n]) => `<option value="${k}" ${g.papel === k ? "selected" : ""}>${n}</option>`).join("")}</select>
@@ -559,7 +606,7 @@ function viewCena() {
   const a = mine.amb; const t = mine.timer;
   const cena = cenaId ? (mine.cenas[cenaId] ||= { nome: "", txt: "", at: 0 }) : null;
   const outras = Object.entries(mine.cenas).filter(([k, v]) => k !== cenaId && (v.txt || v.nome)).sort((x, y) => num(y[1].at) - num(x[1].at));
-  return `<section class="card"><h3>Efeitos sonoros <span class="muted small">todos ouvem</span></h3>
+  return `${viewOuvintes()}<section class="card"><h3>Efeitos sonoros <span class="muted small">todos ouvem</span></h3>
       <div class="sons">${EFEITOS.map(([k, n]) => `<button data-a="som" data-k="${k}">${n}</button>`).join("")}</div>
       <div class="row wrap small"><label class="chk"><input type="checkbox" id="somPrevia" ${ui.previa ? "checked" : ""}> Só ouvir aqui (prévia)</label></div></section>
     <section class="card"><h3>Ambientação <span class="muted small">em laço, para todos</span></h3>
@@ -696,6 +743,24 @@ function publicar() {
     OBR.room.setMetadata({ [PUB_KEY]: pub }).catch(() => {});
   }, 150);
 }
+/* ---------- Quem está ouvindo ---------- */
+const ouvintes = {}; // id -> { nome, estado, vol, v, at }
+function perguntarQuemOuve() { if (obrOk) OBR.broadcast.sendMessage(CH, { kind: "quemOuve" }, { destination: "ALL" }).catch(() => {}); }
+function statusOuvinte(id) {
+  const o = ouvintes[id];
+  if (!o || Date.now() - o.at > 60000) return ["sem", "❔ sem resposta", "A extensão dele está numa versão antiga ou a caixa de som não abriu. Peça para recarregar a página (F5)."];
+  if (o.estado !== "running") return ["bloq", "🔇 bloqueado", "Precisa clicar uma vez no botão 🔇 no canto de baixo, à esquerda."];
+  if (Number(o.vol) === 0) return ["mudo", "🔈 volume 0", "Está ouvindo, mas com o volume no zero."];
+  return ["ok", `🔊 ouvindo · ${Math.round(Number(o.vol) * 100)}%`, ""];
+}
+function viewOuvintes() {
+  const pessoas = [{ id: me.id, name: `${me.name} (você)` }, ...party.map((p) => ({ id: p.id, name: p.name }))];
+  const semSom = pessoas.filter((p) => statusOuvinte(p.id)[0] !== "ok");
+  return `<section class="card"><h3>Quem está ouvindo</h3>
+    <ul class="ouvintes">${pessoas.map((p) => { const [k, txt, dica] = statusOuvinte(p.id); return `<li class="o-${k}"><b>${esc(p.name)}</b> <span>${txt}</span>${dica ? `<small class="muted">${esc(dica)}</small>` : ""}</li>`; }).join("")}</ul>
+    <div class="row wrap"><button data-a="ouvVerificar">🔄 Verificar</button><button data-a="ouvTestar">🔔 Testar som em todos</button>
+      ${semSom.length ? `<button class="primary" data-a="ouvAvisar" title="Mostra um aviso na tela de quem está sem som e reabre o botão de som dele">📣 Avisar quem está sem som (${semSom.length})</button>` : ""}</div></section>`;
+}
 function som(k) {
   if (ui.previa || !obrOk) { tocarLocal(k); return; }
   OBR.broadcast.sendMessage(CH, { kind: "som", k }, { destination: "ALL" }).catch(() => toast("Não deu para enviar o som."));
@@ -763,7 +828,7 @@ $app.addEventListener("keydown", (ev) => {
 
 $app.addEventListener("click", async (ev) => {
   const b = ev.target.closest("[data-tab],[data-a]"); if (!b || b.tagName === "INPUT") return;
-  if (b.dataset.tab) { tab = b.dataset.tab; lsSet(NS + ":tab", tab); render(); return; }
+  if (b.dataset.tab) { tab = b.dataset.tab; lsSet(NS + ":tab", tab); if (tab === "cena") perguntarQuemOuve(); render(); return; }
   if (b.tagName === "A") ev.preventDefault();
   const a = b.dataset.a; const id = b.dataset.id;
   const s = id ? getSheet(id) : null;
@@ -914,6 +979,32 @@ $app.addEventListener("click", async (ev) => {
 
     /* Combate: tokens e gerador */
     case "cAddSel": return addSelecionados();
+    case "genModo": ui.genModo = b.dataset.k; return render();
+    case "eqGerar": {
+      mine.genEq = { tema: val("eqTema") || "sorteio", nex: num(val("eqNex")) || 35, tam: num(val("eqTam")) || 4 }; saveMine();
+      ui.equipe = gerarEquipe(mine.genEq); ui.eqAlvo = undefined; return render();
+    }
+    case "eqHist": if (ui.equipe) outraHistoriaEquipe(ui.equipe); return render();
+    case "eqMembro": ev.preventDefault?.(); if (ui.equipe) outroMembro(ui.equipe, num(b.dataset.i)); return render();
+    case "eqCombate": {
+      const e = ui.equipe; if (!e) return;
+      for (const m of e.membros) addCombatente({ nome: m.nome, cri: { nome: m.nome, tipo: m.tipo, vd: m.vd, ini: m.ini, per: m.per, res: m.res, atq: m.atq, extra: m.extra, hab: m.hab, attrs: m.attrs, desl: m.desl, lore: { resumo: m.historia.join(" ") } }, pv: num(m.pv), pvMax: num(m.pv), def: num(m.def), oculto: true });
+      toast(`${e.membros.length} integrantes de ${e.nome} no combate.`); return render();
+    }
+    case "eqCopiar": {
+      const e = ui.equipe; if (!e) return;
+      try { await navigator.clipboard.writeText([...equipeTexto(e), "", ...e.membros.map(membroTexto)].join("\n")); toast("Copiado."); } catch { toast("Não deu para copiar aqui."); }
+      return;
+    }
+    case "eqHexa": {
+      const e = ui.equipe; if (!e) return; const ti = document.getElementById("eqAlvo") ? num(val("eqAlvo")) : -1; ui.eqAlvo = ti >= 0 ? ti : undefined;
+      const alvo = hx()?.equipes?.[ti];
+      if (alvo && (alvo.membros || []).some((m) => !m.sheetId) && !b.classList.contains("confirm")) { b.classList.add("confirm"); b.textContent = "Confirmar: trocar os NPCs?"; return; }
+      const plano = [`${e.nome} (${e.temaNome})`, `Desejo: ${e.desejo}.`, `Estratégia: ${e.estrategia}`, `Segredo: ${e.segredo}.`, `Ponto fraco: ${e.fraqueza}.`, ...e.tensoes].join("\n");
+      const membros = e.membros.map(({ funcao, classe, lealdade, ...m }) => m);
+      lsSet(HX_IMPORT, JSON.stringify({ at: Date.now(), ti, equipe: { nome: e.nome, membros, plano, perfil: equipeTexto(e).slice(1) } }));
+      toast(`${e.nome} enviada ao Hexatombe. Ela aparece na aba Equipes.`); return render();
+    }
     case "gerar": mine.gen = { tipo: val("genTipo") || mine.gen.tipo, vd: num(val("genVd")) || mine.gen.vd, papel: val("genPapel") || mine.gen.papel }; saveMine(); ui.gerado = gerarNpc(mine.gen); return render();
     case "genNome": { if (!ui.gerado) return; outroNome(ui.gerado); return render(); }
     case "genHabs": { if (!ui.gerado) return; outrasHabilidades(ui.gerado); return render(); }
@@ -934,6 +1025,14 @@ $app.addEventListener("click", async (ev) => {
 
     /* Cena: sons */
     case "som": return som(b.dataset.k);
+    case "ouvVerificar": perguntarQuemOuve(); toast("Perguntando…"); setTimeout(() => softRender(), 1500); return;
+    case "ouvTestar": som("sino"); return;
+    case "ouvAvisar": {
+      const pessoas = [me.id, ...party.map((p) => p.id)];
+      const ids = pessoas.filter((id) => statusOuvinte(id)[0] !== "ok");
+      OBR.broadcast.sendMessage(CH, { kind: "aviso", ids, reabrir: true, text: "🔇 O mestre está tocando sons. Clique no botão 🔇 no canto de baixo, à esquerda, para ouvir. Se ele não aparecer, recarregue a página (F5)." }, { destination: "ALL" }).catch(() => {});
+      toast("Aviso enviado."); setTimeout(perguntarQuemOuve, 3000); return;
+    }
     case "amb": { const k = b.dataset.k; const L = mine.amb.loops; mine.amb.loops = L.includes(k) ? L.filter((x) => x !== k) : [...L, k]; publicar(); return render(); }
     case "ambUrl": {
       const u = val("ambUrl").trim(); if (!/^https:\/\/\S+$/i.test(u)) return toast("Cole um link https:// direto para um arquivo de áudio.");
@@ -995,6 +1094,11 @@ async function start() {
     OBR.player.onChange((p) => { if (p.role !== role) { role = p.role; render(); } });
     try { party = await OBR.party.getPlayers(); } catch { party = []; }
     OBR.party.onChange((ps) => { party = ps; softRender(); });
+    OBR.broadcast.onMessage(CH, (ev) => {
+      const d = ev.data || {};
+      if (d.kind === "ouvinte" && d.id) { ouvintes[d.id] = { nome: d.nome, estado: d.estado, vol: d.vol, v: d.v, at: Date.now() }; if (isGM() && tab === "cena") softRender(); }
+    });
+    if (tab === "cena") perguntarQuemOuve();
     sceneOk = await OBR.scene.isReady();
     await lerCena();
     OBR.scene.onReadyChange(async (r) => { sceneOk = r; await lerCena(); if (r) { updateRing(); processarFila(); } softRender(); });
