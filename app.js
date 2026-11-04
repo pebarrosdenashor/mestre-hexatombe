@@ -1,7 +1,7 @@
 import OBR, { buildShape } from "https://cdn.jsdelivr.net/npm/@owlbear-rodeo/sdk@3.1.0/+esm";
 import { CONDICOES, ESTIGMAS, BESTIARIO } from "./dados.js";
 import { EFEITOS, AMBIENTES, tocar as tocarLocal, setVolume as setVolLocal } from "./sons.js";
-import { gerarNpc, VDS, TIPOS, PAPEIS } from "./gerador.js";
+import { gerarNpc, VDS, TIPOS, PAPEIS, outrasHabilidades, outraHistoria, outroNome, loreTexto } from "./gerador.js";
 
 /* =========================================================
    Escudo do Mestre — Hexatombe (Owlbear Rodeo)
@@ -280,7 +280,7 @@ function viewLocked() {
       <div class="clocks">${rel.map((r) => relogioSVG(r)).join("")}</div></section>` : ""}
     <section class="card"><h3>Sons do mestre</h3>
       <div class="row"><span>🔈</span><input type="range" min="0" max="100" step="5" id="volJog" value="${Math.round(volJogador() * 100)}"><span class="small muted" id="volTxt">${Math.round(volJogador() * 100)}%</span></div>
-      <p class="muted small">Volume dos efeitos e da ambientação que o mestre tocar.</p></section>`;
+      <p class="muted small">Volume dos efeitos e da ambientação que o mestre tocar. Os sons saem pelo botão 🔊 no canto de baixo, à esquerda; se ele estiver 🔇 vermelho, clique nele uma vez para liberar o som.</p></section>`;
 }
 function volJogador() { const v = lsGet(`${NS}:vol`); return v === null ? 0.8 : clamp(Number(v) || 0, 0, 1); }
 
@@ -425,7 +425,9 @@ function viewCombate() {
           ${(cri.atq || []).map((a, ai) => `<button class="atk" data-a="cAtq" data-id="${e.id}" data-i="${ai}"><b>${esc(a[0])}</b> <span>${esc(a[1])} · ${esc(a[2])} ${esc(a[3] || "")}</span></button>`).join("")}
           ${(cri.extra || []).map((a) => `<button class="atk" data-a="cExtra" data-id="${e.id}" data-e="${esc(a[1])}" data-n="${esc(a[0])}"><b>${esc(a[0])}</b> <span>${esc(a[1])}</span></button>`).join("")}
           <div class="row wrap">${["Fortitude", "Reflexos", "Vontade"].map((r) => `<button data-a="cRes" data-id="${e.id}" data-r="${r}">${r} ${esc(cri.res?.[r] || "1d20")}</button>`).join("")}<button data-a="cRes" data-id="${e.id}" data-r="Percepção">Percepção ${esc(cri.per || "1d20")}</button></div>
-          ${(cri.hab || []).length ? `<details><summary>Habilidades</summary><ul class="small">${cri.hab.map((h) => `<li>${esc(h)}</li>`).join("")}</ul></details>` : ""}
+          ${cri.attrs ? `<p class="small muted">${esc(cri.attrs)}</p>` : ""}
+          ${(cri.hab || []).length ? `<details><summary>Habilidades</summary><ul class="small">${cri.hab.map((h) => `<li>${habHTML(h)}</li>`).join("")}</ul></details>` : ""}
+          ${cri.lore ? `<details><summary>História</summary><ul class="small lore">${loreTexto(cri.lore).map((t) => `<li>${esc(t)}</li>`).join("")}</ul></details>` : ""}
           ${cri.pp ? `<p class="small"><b>Presença perturbadora:</b> ${esc(cri.pp)}</p>` : ""}</div>` : ""}
         ${ui.cRes?.id === e.id ? `<div class="res">${esc(ui.cRes.txt).replace(/\n/g, "<br>")}${ui.cRes.dano != null && ui.cRes.alvo ? ` <button data-a="cAplicar" data-id="${ui.cRes.alvo}" data-v="${ui.cRes.dano}">Aplicar ${ui.cRes.dano} de dano</button>` : ""}</div>` : ""}
         <div class="row wrap foot">${e.sheetId ? `<button class="ghost" data-a="abrirFicha" data-id="${e.sheetId}">📄 Ficha</button>` : `<button class="ghost" data-a="cVincular" data-id="${e.id}">🎯 Vincular token selecionado</button>`}
@@ -462,16 +464,26 @@ function viewCombate() {
 /* ---------- Gerador de NPC ---------- */
 function geradoHTML(g) {
   const c = g.cri;
+  const lore = loreTexto(c.lore);
   return `<div class="gerado"><div class="row between"><b class="gen">${esc(g.nome)}</b><button class="icon ghost" data-a="genNome" title="Outro nome">🎲</button></div>
     <div class="muted small">${esc(c.tipo)} · VD ${esc(c.vd)} · ${esc(c.desl)}</div>
+    ${c.attrs ? `<div class="small attrs">${esc(c.attrs)}</div>` : ""}
     <div class="gstats"><span>Def <b>${g.def}</b></span><span>PV <b>${g.pv}</b></span><span>Ini <b>${esc(c.ini)}</b></span><span>Perc. <b>${esc(c.per)}</b></span></div>
     <div class="small">Fort ${esc(c.res.Fortitude)} · Ref ${esc(c.res.Reflexos)} · Von ${esc(c.res.Vontade)}</div>
     ${c.rd ? `<div class="small">RD: ${esc(c.rd)}${c.vuln ? ` · vulnerável a ${esc(c.vuln)}` : ""}</div>` : ""}
     ${c.pp ? `<div class="small">Presença perturbadora: ${esc(c.pp)}</div>` : ""}
     <ul class="small gl">${c.atq.map((a) => `<li><b>${esc(a[0])}</b> ${esc(a[1])} · ${esc(a[2])} ${esc(a[3])}</li>`).join("")}${(c.extra || []).map((a) => `<li><b>${esc(a[0])}</b></li>`).join("")}</ul>
-    <ul class="small gl">${c.hab.map((h) => `<li>${esc(h)}</li>`).join("")}</ul>
+    <div class="row between ghead"><b class="small">Habilidades</b><button class="ghost small" data-a="genHabs" title="Sorteia outras habilidades, mantendo o resto">🎲 Outras</button></div>
+    <ul class="small gl habs">${c.hab.map((h) => `<li>${habHTML(h)}</li>`).join("")}</ul>
+    ${lore.length ? `<div class="row between ghead"><b class="small">História</b><button class="ghost small" data-a="genLore" title="Sorteia outra história, mantendo os números">🎲 Outra</button></div>
+    <div class="lore small"><p>${esc(lore[0])}</p><ul class="gl">${lore.slice(1).map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div>` : ""}
     <div class="row wrap"><input type="number" min="1" max="20" id="genQtd" class="n3" value="1" title="Quantidade"><button class="primary" data-a="genCombate">＋ Combate</button>
       <button data-a="genSalvar" title="Guarda na lista de criaturas do combate">💾 Guardar</button><button class="ghost" data-a="genCopiar">📋 Copiar</button></div></div>`;
+}
+/* "Nome (ação): texto" com o nome em negrito */
+function habHTML(h) {
+  const m = /^([^:(]{2,40}(?: \([^)]*\))?):\s(.*)$/s.exec(String(h));
+  return m ? `<b>${esc(m[1])}:</b> ${esc(m[2])}` : esc(h);
 }
 function viewGerador() {
   const g = mine.gen;
@@ -481,12 +493,12 @@ function viewGerador() {
       <select id="genVd" title="Nível da ameaça (VD)">${VDS.map((v) => `<option value="${v}" ${num(g.vd) === v ? "selected" : ""}>VD ${v}</option>`).join("")}</select>
       <select id="genPapel">${PAPEIS.map(([k, n]) => `<option value="${k}" ${g.papel === k ? "selected" : ""}>${n}</option>`).join("")}</select>
       <button class="primary" data-a="gerar">🎲 Gerar</button></div>
-    ${ui.gerado ? geradoHTML(ui.gerado) : `<p class="muted small">Cria uma ameaça com Defesa, PV, testes, ataques e uma habilidade, na escala do VD escolhido. Os números são aproximados, para improvisar.</p>`}
+    ${ui.gerado ? geradoHTML(ui.gerado) : `<p class="muted small">Cria uma ameaça pronta: Defesa, PV, atributos, testes, ataques, habilidades sorteadas do tipo escolhido (lacaio 1, comum 2, chefe 3 + uma de chefe) e uma pequena história, com o que quer, um segredo, como luta e o que carrega. Os números são aproximados, para improvisar.</p>`}
     ${salvos.length ? `<details><summary class="small">Guardados (${salvos.length})</summary><ul class="small gl">${salvos.map((n) => `<li>${esc(n.nome)} <span class="muted">VD ${esc(n.vd)}</span> <button class="icon ghost danger" data-a="genApagar" data-id="${esc(n.id)}" title="Apagar">✕</button></li>`).join("")}</ul></details>` : ""}
   </section>`;
 }
 function geradoParaBestiario(g) {
-  return { id: uid(), nome: g.nome, tipo: g.cri.tipo, vd: g.cri.vd, def: g.def, pv: g.pv, ini: g.cri.ini, per: g.cri.per, res: g.cri.res, atq: g.cri.atq, extra: g.cri.extra, hab: g.cri.hab, pp: g.cri.pp, rd: g.cri.rd, vuln: g.cri.vuln, desl: g.cri.desl };
+  return { id: uid(), nome: g.nome, tipo: g.cri.tipo, vd: g.cri.vd, def: g.def, pv: g.pv, ini: g.cri.ini, per: g.cri.per, res: g.cri.res, atq: g.cri.atq, extra: g.cri.extra, hab: g.cri.hab, pp: g.cri.pp, rd: g.cri.rd, vuln: g.cri.vuln, desl: g.cri.desl, attrs: g.cri.attrs || "", lore: g.cri.lore || null };
 }
 
 /* ---------- Combate: tokens do mapa ---------- */
@@ -502,7 +514,7 @@ function addDoToken(it) {
   const nome = nomeDoToken(it);
   const cri = bestiarioTodo().find((b) => b.nome.toLowerCase() === nome.toLowerCase().replace(/\s+\d+$/, ""));
   if (cri) {
-    return addCombatente({ nome, tokenId: it.id, cri: { nome: cri.nome, tipo: cri.tipo, vd: cri.vd, ini: cri.ini, per: cri.per, res: cri.res, atq: cri.atq, extra: cri.extra, hab: cri.hab, pp: cri.pp, rd: cri.rd, vuln: cri.vuln, desl: cri.desl }, pv: num(cri.pv), pvMax: num(cri.pv), def: num(cri.def), oculto: true });
+    return addCombatente({ nome, tokenId: it.id, cri: { nome: cri.nome, tipo: cri.tipo, vd: cri.vd, ini: cri.ini, per: cri.per, res: cri.res, atq: cri.atq, extra: cri.extra, hab: cri.hab, pp: cri.pp, rd: cri.rd, vuln: cri.vuln, desl: cri.desl, attrs: cri.attrs || "", lore: cri.lore || null }, pv: num(cri.pv), pvMax: num(cri.pv), def: num(cri.def), oculto: true });
   }
   return addCombatente({ nome, tokenId: it.id, ini: die(20), pv: 0, pvMax: 0, def: "", oculto: true });
 }
@@ -555,7 +567,8 @@ function viewCena() {
       <div class="row"><input id="ambUrl" placeholder="Música por link (mp3/ogg)…" value="${esc(a.url)}"><button data-a="ambUrl">${a.url ? "Trocar" : "▶"}</button>${a.url ? `<button class="danger" data-a="ambUrlStop" title="Parar a música">■</button>` : ""}</div>
       <div class="row"><span class="small muted">Volume da música</span><input type="range" min="0" max="100" step="5" id="ambVol" value="${Math.round(num(a.urlVol) * 100)}"></div>
       ${a.loops.length || a.url ? `<div class="row"><button class="ghost danger" data-a="ambParar">■ Parar toda a ambientação</button></div>` : ""}
-      <p class="muted small">Quem entrar na sala depois também ouve. Cada jogador ajusta o próprio volume clicando no Escudo (a tela de “privado”).</p></section>
+      <p class="muted small">Os sons tocam pelo botão 🔊 no canto de baixo, à esquerda, na tela de cada um. Se aparecer 🔇 vermelho, a pessoa precisa clicar nele uma vez: o navegador só libera som depois de um clique. O volume de cada um fica nesse botão.</p>
+      <p class="muted small">Música por link: precisa ser um link direto para o arquivo (.mp3, .ogg). Links do YouTube, Spotify e Google Drive não funcionam.</p></section>
     <section class="card"><h3>Relógios de ameaça</h3>
       <div class="clocks">${mine.relogios.map((r) => `<div class="clockbox">${relogioSVG(r, true)}
         <div class="row"><button class="icon" data-a="relMenos" data-id="${esc(r.id)}">−</button><button class="icon" data-a="relMais" data-id="${esc(r.id)}">＋</button>
@@ -674,9 +687,14 @@ function montarPub() {
 let pubTimer;
 function publicar() {
   saveMine(); pub = montarPub();
+  lsSet(`${NS}:pub:${roomId}`, JSON.stringify(pub)); // o fundo responde com isto a quem chegar depois
   if (!obrOk) return;
   clearTimeout(pubTimer);
-  pubTimer = setTimeout(() => OBR.room.setMetadata({ [PUB_KEY]: pub }).catch(() => toast("Não deu para salvar na sala.")), 150);
+  pubTimer = setTimeout(() => {
+    // vai por mensagem (chega na hora) e fica guardado na sala (para quem entrar depois)
+    OBR.broadcast.sendMessage(CH, { kind: "pub", pub }, { destination: "ALL" }).catch(() => {});
+    OBR.room.setMetadata({ [PUB_KEY]: pub }).catch(() => {});
+  }, 150);
 }
 function som(k) {
   if (ui.previa || !obrOk) { tocarLocal(k); return; }
@@ -825,7 +843,7 @@ $app.addEventListener("click", async (ev) => {
       const ja = C().lista.filter((e) => e.cri?.nome === cri.nome).length;
       for (let k = 0; k < q; k++) {
         const nome = q > 1 || ja ? `${cri.nome} ${ja + k + 1}` : cri.nome; const pv = num(cri.pvAtual ?? cri.pv) || num(cri.pv);
-        addCombatente({ nome, cri: { nome: cri.nome, tipo: cri.tipo, vd: cri.vd, ini: cri.ini, per: cri.per, res: cri.res, atq: cri.atq, extra: cri.extra, hab: cri.hab, pp: cri.pp, rd: cri.rd, vuln: cri.vuln, desl: cri.desl }, pv, pvMax: num(cri.pv) || pv, def: cri.def === "" ? "" : num(cri.def), oculto: true });
+        addCombatente({ nome, cri: { nome: cri.nome, tipo: cri.tipo, vd: cri.vd, ini: cri.ini, per: cri.per, res: cri.res, atq: cri.atq, extra: cri.extra, hab: cri.hab, pp: cri.pp, rd: cri.rd, vuln: cri.vuln, desl: cri.desl, attrs: cri.attrs || "", lore: cri.lore || null }, pv, pvMax: num(cri.pv) || pv, def: cri.def === "" ? "" : num(cri.def), oculto: true });
       }
       return render();
     }
@@ -897,7 +915,9 @@ $app.addEventListener("click", async (ev) => {
     /* Combate: tokens e gerador */
     case "cAddSel": return addSelecionados();
     case "gerar": mine.gen = { tipo: val("genTipo") || mine.gen.tipo, vd: num(val("genVd")) || mine.gen.vd, papel: val("genPapel") || mine.gen.papel }; saveMine(); ui.gerado = gerarNpc(mine.gen); return render();
-    case "genNome": { if (!ui.gerado) return; const novo = gerarNpc(mine.gen); ui.gerado.nome = novo.nome; return render(); }
+    case "genNome": { if (!ui.gerado) return; outroNome(ui.gerado); return render(); }
+    case "genHabs": { if (!ui.gerado) return; outrasHabilidades(ui.gerado); return render(); }
+    case "genLore": { if (!ui.gerado) return; outraHistoria(ui.gerado); return render(); }
     case "genCombate": {
       const g = ui.gerado; if (!g) return; const q = clamp(num(val("genQtd")) || 1, 1, 20);
       for (let k = 0; k < q; k++) addCombatente({ nome: q > 1 ? `${g.nome} ${k + 1}` : g.nome, cri: { nome: g.nome, ...g.cri }, pv: g.pv, pvMax: g.pv, def: g.def, oculto: true });
@@ -907,7 +927,7 @@ $app.addEventListener("click", async (ev) => {
     case "genApagar": mine.npcs = (mine.npcs || []).filter((n) => n.id !== id); saveMine(); return render();
     case "genCopiar": {
       const g = ui.gerado; if (!g) return; const c = g.cri;
-      const t = `${g.nome} — ${c.tipo}, VD ${c.vd}\nDefesa ${g.def} · PV ${g.pv} · Desloc. ${c.desl}\nIniciativa ${c.ini} · Percepção ${c.per} · Fortitude ${c.res.Fortitude} · Reflexos ${c.res.Reflexos} · Vontade ${c.res.Vontade}${c.rd ? `\nResistências: ${c.rd}` : ""}${c.vuln ? ` · Vulnerável: ${c.vuln}` : ""}${c.pp ? `\nPresença perturbadora: ${c.pp}` : ""}\n${c.atq.map((a) => `${a[0]}: ${a[1]} (${a[2]} ${a[3]})`).join("\n")}\n${c.hab.join("\n")}`;
+      const t = `${g.nome} — ${c.tipo}, VD ${c.vd}\nDefesa ${g.def} · PV ${g.pv} · Desloc. ${c.desl}\nIniciativa ${c.ini} · Percepção ${c.per} · Fortitude ${c.res.Fortitude} · Reflexos ${c.res.Reflexos} · Vontade ${c.res.Vontade}${c.rd ? `\nResistências: ${c.rd}` : ""}${c.vuln ? ` · Vulnerável: ${c.vuln}` : ""}${c.pp ? `\nPresença perturbadora: ${c.pp}` : ""}${c.attrs ? `\n${c.attrs}` : ""}\n${c.atq.map((a) => `${a[0]}: ${a[1]} (${a[2]} ${a[3]})`).join("\n")}\n\nHabilidades\n${c.hab.join("\n")}${c.lore ? `\n\nHistória\n${loreTexto(c.lore).join("\n")}` : ""}`;
       try { await navigator.clipboard.writeText(t); toast("Copiado."); } catch { toast("Não deu para copiar aqui."); }
       return;
     }

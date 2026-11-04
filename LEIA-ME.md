@@ -51,3 +51,9 @@ O botão ⤢ abre o escudo em tela grande, com os agentes em duas colunas.
 - **Notas desta cena:** cada cena do Owlbear tem as suas notas, guardadas no seu navegador. As de outras cenas ficam listadas embaixo. As notas gerais (de antes) também estão aqui.
 
 **Permissão nova:** o manifesto pede a permissão de tocar som automaticamente. Ao atualizar, remova e adicione a extensão de novo se o Owlbear não tocar nada.
+
+## Novidades da versão 1.2
+- **Som consertado.** Os navegadores só deixam tocar som numa janela em que a pessoa clicou, e a parte invisível da extensão nunca recebe clique. Agora os sons tocam num botão 🔊 no canto de baixo, à esquerda, na tela de cada pessoa da sala. Se ele aparecer **🔇 vermelho**, basta clicar uma vez. Clicar no 🔊 mostra o volume.
+- A ambientação também vai por mensagem, não só pela sala: chega na hora e funciona mesmo se a sala estiver sem espaço. Quem entra depois recebe do mestre.
+- Música por link agora toca links que antes falhavam (servidores sem CORS). Precisa ser link direto para .mp3/.ogg.
+- **Gerador de NPC 2:** novos tipos (civil, artista do circo, pessoa tomada pelo Outro Lado, mais animais); habilidades sorteadas de listas próprias de cada tipo (1 no lacaio, 2 no comum, 3 + uma de chefe no chefe), com DT e dano na escala do VD; atributos; e uma pequena história (o que quer, segredo, fala, como luta, o que faz ferido, o que carrega; criaturas têm origem, sinais e fraqueza). Botões 🎲 para trocar só o nome, só as habilidades ou só a história. Tudo isso vai para o combate e para os guardados.

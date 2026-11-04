@@ -180,3 +180,10 @@ input[type=range] { flex: 1; accent-color: var(--accent); padding: 0; background
 .gstats { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 4px; font-size: 13px; }
 .gl { margin: 6px 0; padding-left: 18px; }
 .gl li { margin: 2px 0; }
+
+/* v1.2 — gerador com habilidades e história */
+.gerado .attrs { font-variant-numeric: tabular-nums; letter-spacing: .02em; margin: 2px 0 4px; }
+.gerado .ghead { margin-top: 8px; border-top: 1px solid var(--line, #3a2a2e); padding-top: 6px; }
+.gerado .habs li { margin: 4px 0; }
+.lore p { margin: 4px 0; font-style: italic; }
+.lore li, ul.lore li { margin: 3px 0; }

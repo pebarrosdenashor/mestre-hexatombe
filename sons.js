@@ -21,7 +21,25 @@ function ac() {
   if (ctx.state === "suspended") ctx.resume().catch(() => {});
   return ctx;
 }
-export function setVolume(v) { volume = Math.max(0, Math.min(1, Number(v) || 0)); if (master) master.gain.setTargetAtTime(volume, ctx.currentTime, 0.05); }
+/* Estado do áudio: "running" quando já dá para ouvir; "suspended" quando o navegador ainda espera um clique */
+export function estado() { try { return ac().state; } catch { return "indisponivel"; } }
+export function aoMudarEstado(fn) { try { ac().addEventListener("statechange", () => fn(ctx.state)); } catch { /* */ } }
+/* Chamar dentro de um clique: libera o som neste quadro (inclusive no iPhone/Safari) */
+export async function destravar() {
+  try {
+    const c = ac();
+    const b = c.createBuffer(1, 1, 22050); const s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(0);
+    await c.resume();
+    if (faixa && faixa.paused) faixa.play().catch(() => {});
+    return c.state === "running";
+  } catch { return false; }
+}
+let musicaVol = 0.6;
+export function setVolume(v) {
+  volume = Math.max(0, Math.min(1, Number(v) || 0));
+  if (master) master.gain.setTargetAtTime(volume, ctx.currentTime, 0.05);
+  if (faixa) faixa.volume = Math.max(0, Math.min(1, musicaVol * volume));
+}
 export function getVolume() { return volume; }
 
 /* ---------- Peças ---------- */
@@ -189,11 +207,15 @@ export function lacosAtivos() { return Object.keys(ativos); }
 export function pararLacos() { for (const k of Object.keys(ativos)) laco(k, false); }
 
 /* ---------- Áudio por link (mp3/ogg) ---------- */
-let faixa = null, faixaUrl = "";
+let faixa = null, faixaUrl = "", faixaErro = "";
+export function musicaComErro() { return faixa && faixaErro === faixaUrl; }
 export function musica(url, vol = 0.6) {
+  musicaVol = Number(vol) || 0;
   if (!url) { if (faixa) { faixa.pause(); faixa = null; faixaUrl = ""; } return; }
   if (faixa && faixaUrl === url) { faixa.volume = Math.max(0, Math.min(1, vol * volume)); return; }
   if (faixa) faixa.pause();
-  faixa = new Audio(url); faixa.loop = true; faixa.crossOrigin = "anonymous"; faixaUrl = url; faixa.volume = Math.max(0, Math.min(1, vol * volume));
+  // sem crossOrigin: com ele, links de servidores sem CORS (a maioria) não tocam
+  faixa = new Audio(url); faixa.loop = true; faixa.preload = "auto"; faixaUrl = url; faixa.volume = Math.max(0, Math.min(1, vol * volume));
+  faixa.onerror = () => { faixaErro = url; };
   faixa.play().catch(() => {});
 }

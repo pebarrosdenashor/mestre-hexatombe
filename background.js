@@ -1,10 +1,9 @@
 import OBR from "https://cdn.jsdelivr.net/npm/@owlbear-rodeo/sdk@3.1.0/+esm";
-import { tocar, laco, lacosAtivos, musica, setVolume } from "./sons.js";
 
 /* Roda o tempo todo, mesmo com a janela fechada:
    - no mestre: guarda todas as rolagens das fichas (inclusive as secretas) para o Escudo do Mestre
    - em todos: mostra os avisos do combate ("vez de…") e os anúncios públicos do mestre
-   - em todos: toca os efeitos e a ambientação que o mestre escolher, e avisa quando o cronômetro acaba
+   - em todos: abre a "caixa de som" (som.html), onde os sons tocam de verdade, e avisa quando o cronômetro acaba
    - no mestre: menu do token "Adicionar ao combate" */
 
 const NS = "io.github.pebarrosdenashor.mestre-hx";
@@ -36,19 +35,25 @@ function onFichaChunk(d) {
   if (msg.secret) OBR.notification.show(`🛡 Rolagem secreta de ${msg.who}: ${String(msg.text).split("\n")[0]}`);
 }
 
-/* ---------- Volume de cada jogador ---------- */
-function volume() { try { const v = localStorage.getItem(`${NS}:vol`); return v === null ? 0.8 : Math.max(0, Math.min(1, Number(v) || 0)); } catch { return 0.8; } }
-setVolume(volume());
-window.addEventListener("storage", (e) => { if (e.key === `${NS}:vol`) { setVolume(volume()); aplicarAmbiente(ultimoPub); } });
-
-/* ---------- Ambiente, relógios e cronômetro (guardados na sala) ---------- */
-let ultimoPub = null, timerAlarme = null, timerFim = 0;
-function aplicarAmbiente(p) {
-  const loops = p?.amb?.loops || [];
-  for (const k of lacosAtivos()) if (!loops.includes(k)) laco(k, false);
-  for (const k of loops) laco(k, true);
-  musica(p?.amb?.url || "", Number(p?.amb?.urlVol ?? 0.6));
+/* ---------- Caixa de som ----------
+   O fundo não recebe cliques, e sem clique o navegador não deixa tocar som.
+   Os sons tocam num botãozinho no canto da tela (som.html), que libera o áudio com um clique. */
+const POP = NS + "/som";
+async function abrirCaixaDeSom() {
+  try {
+    const h = await OBR.viewport.getHeight();
+    await OBR.popover.open({
+      id: POP, url: new URL("som.html", location.href).href, width: 240, height: 52,
+      anchorReference: "POSITION", anchorPosition: { left: 72, top: h - 12 },
+      anchorOrigin: { horizontal: "LEFT", vertical: "BOTTOM" }, transformOrigin: { horizontal: "LEFT", vertical: "BOTTOM" },
+      disableClickAway: true, hidePaper: true,
+    });
+  } catch { /* */ }
 }
+function tocar(k) { OBR.broadcast.sendMessage(CH, { kind: "som", k }, { destination: "LOCAL" }).catch(() => {}); }
+
+/* ---------- Cronômetro (guardado na sala) ---------- */
+let timerAlarme = null, timerFim = 0;
 function fimDoTimer(nome) {
   OBR.notification.show(`⏳ ${nome || "Cronômetro"}: o tempo acabou!`, "WARNING");
   tocar("sino");
@@ -61,7 +66,7 @@ function aplicarTimer(p) {
   const falta = timerFim - Date.now();
   if (falta > 0) timerAlarme = setTimeout(() => fimDoTimer(t.nome), falta);
 }
-function aplicarPub(p) { ultimoPub = p; aplicarAmbiente(p); aplicarTimer(p); }
+function aplicarPub(p) { aplicarTimer(p); }
 
 // Cronômetro só do mestre (não vai para a sala): confere o que a janela guardou
 setInterval(() => {
@@ -100,9 +105,13 @@ OBR.onReady(async () => {
   OBR.broadcast.onMessage(CH, (ev) => {
     const d = ev.data || {};
     if ((d.kind === "turno" || d.kind === "anuncio") && d.text) OBR.notification.show(d.text);
-    if (d.kind === "som" && d.k) tocar(String(d.k));
+    // a caixa de som pediu a ambientação (a sala pode estar sem espaço para guardá-la)
+    if (d.kind === "pedePub" && role === "GM") {
+      try { const pub = JSON.parse(localStorage.getItem(`${NS}:pub:${roomId}`) || "null"); if (pub) OBR.broadcast.sendMessage(CH, { kind: "pub", pub }, { destination: "REMOTE" }); } catch { /* */ }
+    }
   });
   try { aplicarPub((await OBR.room.getMetadata())[PUB_KEY] || null); } catch { /* */ }
   OBR.room.onMetadataChange((md) => { if (PUB_KEY in md) aplicarPub(md[PUB_KEY]); });
   menuCombate();
+  abrirCaixaDeSom();
 });
