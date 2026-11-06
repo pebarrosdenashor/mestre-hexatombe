@@ -45,7 +45,7 @@ async function abrirCaixaDeSom() {
   try {
     const h = await OBR.viewport.getHeight();
     await OBR.popover.open({
-      id: POP, url: new URL("som.html?v=1.5.0", location.href).href, width: 240, height: 52,
+      id: POP, url: new URL("som.html?v=1.6.0", location.href).href, width: 240, height: 52,
       anchorReference: "POSITION", anchorPosition: { left: 72, top: h - 12 },
       anchorOrigin: { horizontal: "LEFT", vertical: "BOTTOM" }, transformOrigin: { horizontal: "LEFT", vertical: "BOTTOM" },
       disableClickAway: true, hidePaper: true,
@@ -66,7 +66,7 @@ async function abrirSussurro(d) {
     const h = Math.min(420, 110 + linhas * 30 + (d.resp ? 52 : 0));
     await OBR.popover.close(SUS_POP).catch(() => {});
     await OBR.popover.open({
-      id: SUS_POP, url: new URL("sussurro.html?v=1.5.0", location.href).href + "#d=" + encodeURIComponent(JSON.stringify({ sid: d.sid, txt: d.txt, estilo: d.estilo, resp: !!d.resp })),
+      id: SUS_POP, url: new URL("sussurro.html?v=1.6.0", location.href).href + "#d=" + encodeURIComponent(JSON.stringify({ sid: d.sid, txt: d.txt, estilo: d.estilo, resp: !!d.resp })),
       width: Math.min(560, Math.max(320, w - 40)), height: h,
       anchorReference: "POSITION", anchorPosition: { left: Math.round(w / 2), top: 70 },
       anchorOrigin: { horizontal: "CENTER", vertical: "TOP" }, transformOrigin: { horizontal: "CENTER", vertical: "TOP" },

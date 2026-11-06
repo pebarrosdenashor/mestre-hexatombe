@@ -1,9 +1,10 @@
 import OBR, { buildShape } from "https://cdn.jsdelivr.net/npm/@owlbear-rodeo/sdk@3.1.0/+esm";
-import { CONDICOES, ESTIGMAS, BESTIARIO } from "./dados.js?v=1.5.0";
-import { EFEITOS, AMBIENTES, tocar as tocarLocal, tocarUrl as tocarUrlLocal, setVolume as setVolLocal } from "./sons.js?v=1.5.0";
-import { gerarEquipe, outroMembro, outraHistoriaEquipe, equipeTexto, membroTexto, NEXS, TEMAS, COMPOSICOES } from "./equipe.js?v=1.5.0";
-import { gerarNpc, VDS, TIPOS, PAPEIS, TRACOS, aplicarTraco, outrasHabilidades, outraHistoria, outroNome, loreTexto } from "./gerador.js?v=1.5.0";
-import { gerarEncontro, cenaEncontro, outroGrupo, encontroTexto, TEMAS_ENC, DIFICULDADES, ELEMENTOS_ENC, PAPEL_NOME } from "./encontro.js?v=1.5.0";
+import { CONDICOES, ESTIGMAS, BESTIARIO } from "./dados.js?v=1.6.0";
+import * as PM from "./prato-mestre.js?v=1.6.0";
+import { EFEITOS, AMBIENTES, tocar as tocarLocal, tocarUrl as tocarUrlLocal, setVolume as setVolLocal } from "./sons.js?v=1.6.0";
+import { gerarEquipe, outroMembro, outraHistoriaEquipe, equipeTexto, membroTexto, NEXS, TEMAS, COMPOSICOES } from "./equipe.js?v=1.6.0";
+import { gerarNpc, VDS, TIPOS, PAPEIS, TRACOS, aplicarTraco, outrasHabilidades, outraHistoria, outroNome, loreTexto } from "./gerador.js?v=1.6.0";
+import { gerarEncontro, cenaEncontro, outroGrupo, encontroTexto, TEMAS_ENC, DIFICULDADES, ELEMENTOS_ENC, PAPEL_NOME } from "./encontro.js?v=1.6.0";
 
 /* =========================================================
    Escudo do Mestre — Hexatombe (Owlbear Rodeo)
@@ -55,7 +56,9 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 const fmt = (n) => (n >= 0 ? `+${n}` : `−${-n}`);
-const die = (f) => 1 + Math.floor(Math.random() * f);
+const dieRaw = (f) => 1 + Math.floor(Math.random() * f);
+// Todo dado passa pelo prato do mestre (só ele vê, no navegador dele)
+const die = (f) => PM.d(f, dieRaw(f));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const hora = (t) => new Date(t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -64,8 +67,10 @@ function lsSet(k, v) { try { localStorage.setItem(k, v); return true; } catch { 
 function readJSON(k, def) { try { return JSON.parse(lsGet(k) || "null") ?? def; } catch { return def; } }
 
 function rollTest(n) {
-  const k = n > 0 ? n : 2 - n; const dice = Array.from({ length: Math.min(k, 20) }, () => die(20));
-  return { dice, pick: n > 0 ? Math.max(...dice) : Math.min(...dice), worst: n <= 0 };
+  const k = n > 0 ? n : 2 - n; const dice = Array.from({ length: Math.min(k, 20) }, () => dieRaw(20));
+  const pick = n > 0 ? Math.max(...dice) : Math.min(...dice);
+  PM.grupo(20, dice, pick, n <= 0);
+  return { dice, pick, worst: n <= 0 };
 }
 function rollExpr(expr) {
   const str = String(expr || "").replace(/\s+/g, "").toLowerCase();
@@ -96,6 +101,7 @@ let cenaId = null;   // identificador da cena aberta, para as notas
 let tab = lsGet(NS + ":tab") || "mesa";
 const ui = { open: {}, cOpen: {}, logFiltro: "todas", secRes: null, grupo: {}, secSel: null, nome: "", alvo: {} };
 const isGM = () => role === "GM";
+PM.iniciar({ ativo: isGM, sala: () => roomId, origem: "Painel do Mestre" });
 const fichaKey = () => `${FICHA_NS}:${roomId}`;
 const hxKey = () => `${HX_NS}:state:${roomId}`;
 const mineKey = () => `${NS}:${roomId}`;
@@ -247,6 +253,7 @@ function bestiarioTodo() { const h = hx(); return [...BESTIARIO.map((c) => ({ ..
 /* ---------- Registro de rolagens do mestre ---------- */
 function readLog() { return readJSON(logKey(), []); }
 function addLog(text, who = "Mestre", secret = true) {
+  PM.texto(text);
   const log = readLog(); log.unshift({ at: Date.now(), who, text, secret, src: "mestre" });
   lsSet(logKey(), JSON.stringify(log.slice(0, 250)));
 }
@@ -627,7 +634,7 @@ function addDoToken(it) {
   if (cri) {
     return addCombatente({ nome, tokenId: it.id, cri: { nome: cri.nome, tipo: cri.tipo, vd: cri.vd, ini: cri.ini, per: cri.per, res: cri.res, atq: cri.atq, extra: cri.extra, hab: cri.hab, pp: cri.pp, rd: cri.rd, vuln: cri.vuln, desl: cri.desl, attrs: cri.attrs || "", lore: cri.lore || null }, pv: num(cri.pv), pvMax: num(cri.pv), def: num(cri.def), oculto: true });
   }
-  return addCombatente({ nome, tokenId: it.id, ini: die(20), pv: 0, pvMax: 0, def: "", oculto: true });
+  return addCombatente({ nome, tokenId: it.id, ini: dieRaw(20), pv: 0, pvMax: 0, def: "", oculto: true });
 }
 async function addSelecionados() {
   if (!sceneOk) return toast("Abra uma cena primeiro.");
@@ -1307,19 +1314,19 @@ async function start() {
   if (!OBR.isAvailable) {
     // Teste fora do Owlbear: index.html?gm
     if (new URLSearchParams(location.search).has("gm")) role = "GM";
-    loadMine(); render(); return;
+    PM.atualizar(); loadMine(); render(); return;
   }
   OBR.onReady(async () => {
     obrOk = true; roomId = OBR.room.id;
     [role, me.id, me.name] = await Promise.all([OBR.player.getRole(), OBR.player.getId(), OBR.player.getName()]);
-    loadMine(); setVolLocal(volJogador());
+    PM.atualizar(); loadMine(); setVolLocal(volJogador());
     try { const md = await OBR.room.getMetadata(); pub = md[PUB_KEY] || null; fichaCfg = { ...fichaCfg, ...(md[FICHA_CFG] || {}) }; } catch { pub = null; }
     render();
     OBR.room.onMetadataChange((md) => {
       const x = md[PUB_KEY]; if (!isGM() && x) { pub = x; softRender(); }
       if (md[FICHA_CFG]) { fichaCfg = { ...fichaCfg, ...md[FICHA_CFG] }; if (tab === "ferramentas") softRender(); }
     });
-    OBR.player.onChange((p) => { if (p.role !== role) { role = p.role; render(); } });
+    OBR.player.onChange((p) => { if (p.role !== role) { role = p.role; PM.atualizar(); render(); } });
     try { party = await OBR.party.getPlayers(); } catch { party = []; }
     OBR.party.onChange((ps) => { party = ps; softRender(); });
     OBR.broadcast.onMessage(CH, (ev) => {

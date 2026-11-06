@@ -101,3 +101,8 @@ Arquivos novos: `sussurro.html` e `sussurro.js`. Suba os dois junto com os outro
 - Atalho: na aba Mesa, abra um agente e clique em **🗣 Sussurrar**.
 
 **🧰 Ferramentas — efeitos das fichas na mesa:** liga/desliga a animação de ritual e os críticos na tela de todos (o mesmo controle está na aba Mesa da ficha).
+
+## Novidades da versão 1.6
+
+- **Prato do mestre**: os dados que o mestre rola no Hexatombe e no Painel do Mestre caem num prato de dados só dele, com a mesma aparência escolhida na ficha (Dados › Aparência dos dados e do prato). Nada é enviado pela sala: os jogadores nunca veem esse prato.
+- O botão 🎲 no canto de baixo reabre o prato; 🕘 mostra as últimas rolagens do mestre (das três extensões) e 📌 deixa o prato aberto.
