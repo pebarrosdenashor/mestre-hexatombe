@@ -1,10 +1,10 @@
 import OBR, { buildShape } from "https://cdn.jsdelivr.net/npm/@owlbear-rodeo/sdk@3.1.0/+esm";
-import { CONDICOES, ESTIGMAS, BESTIARIO } from "./dados.js?v=1.7.0";
-import * as PM from "./prato-mestre.js?v=1.7.0";
-import { EFEITOS, AMBIENTES, tocar as tocarLocal, tocarUrl as tocarUrlLocal, setVolume as setVolLocal } from "./sons.js?v=1.7.0";
-import { gerarEquipe, outroMembro, outraHistoriaEquipe, equipeTexto, membroTexto, NEXS, TEMAS, COMPOSICOES } from "./equipe.js?v=1.7.0";
-import { gerarNpc, VDS, TIPOS, PAPEIS, TRACOS, aplicarTraco, outrasHabilidades, outraHistoria, outroNome, loreTexto } from "./gerador.js?v=1.7.0";
-import { gerarEncontro, cenaEncontro, outroGrupo, encontroTexto, TEMAS_ENC, DIFICULDADES, ELEMENTOS_ENC, PAPEL_NOME } from "./encontro.js?v=1.7.0";
+import { CONDICOES, ESTIGMAS, BESTIARIO } from "./dados.js?v=1.8.0";
+import * as PM from "./prato-mestre.js?v=1.8.0";
+import { EFEITOS, AMBIENTES, tocar as tocarLocal, tocarUrl as tocarUrlLocal, setVolume as setVolLocal } from "./sons.js?v=1.8.0";
+import { gerarEquipe, outroMembro, outraHistoriaEquipe, equipeTexto, membroTexto, NEXS, TEMAS, COMPOSICOES } from "./equipe.js?v=1.8.0";
+import { gerarNpc, VDS, TIPOS, PAPEIS, TRACOS, aplicarTraco, outrasHabilidades, outraHistoria, outroNome, loreTexto } from "./gerador.js?v=1.8.0";
+import { gerarEncontro, cenaEncontro, outroGrupo, encontroTexto, TEMAS_ENC, DIFICULDADES, ELEMENTOS_ENC, PAPEL_NOME } from "./encontro.js?v=1.8.0";
 
 /* =========================================================
    Escudo do Mestre — Hexatombe (Owlbear Rodeo)
@@ -335,7 +335,36 @@ function hxResumo() {
     <div class="hxstats"><div><small>Dia</small><b>${num(h.dia)}</b></div><div><small>Fase</small><b class="sm">${FASES[num(h.fase)] || "?"}</b></div><div><small>Vivos</small><b>${vivos}</b></div>
       <div title="Sacrifícios${hoje ? ` (${hoje} hoje)` : ""}"><small>Sacrifícios</small><span class="sacs">${Array.from({ length: 6 }, (_, i) => `<i class="${i < sac ? "on" : ""}"></i>`).join("")}</span></div></div>
     ${h.fracassou ? `<div class="hxwarn">Ritual fracassado</div>` : ""}
-    <div class="teams">${h.equipes.filter((t) => (t.membros || []).length).map((t) => `<div class="team" style="--c:${esc(t.cor || "#888")}"><b>${esc(t.nome)}</b><span class="rs"><span title="Água">💧 ${num(t.agua)}</span><span title="Comida">🍖 ${num(t.comida)}</span><span title="Sucata">⚙ ${num(t.sucata)}</span></span></div>`).join("")}</div></section>`;
+    <div class="teams">${h.equipes.filter((t) => (t.membros || []).length).map((t) => `<div class="team" style="--c:${esc(t.cor || "#888")}"><b>${esc(t.nome)}</b><span class="rs"><span title="Água">💧 ${num(t.agua)}</span><span title="Comida">🍖 ${num(t.comida)}</span><span title="Sucata">⚙ ${num(t.sucata)}</span></span></div>`).join("")}</div>
+    ${hxContadores(h)}</section>`;
+}
+/* Fome (Os Comensais) e Fervor (A Romaria): o pedido vai pelo navegador e o Hexatombe aplica */
+const HX_CONT = HX_NS + ":contador";
+const CONTADORES = { fome: { nome: "Fome", ic: "🩸" }, fervor: { nome: "Fervor", ic: "🕯" } };
+function contadorDe(t) {
+  if (!t) return "";
+  if (t.contador != null) return CONTADORES[t.contador] ? t.contador : "";
+  const n = String(t.nome || "").toLowerCase();
+  return /comensa/.test(n) ? "fome" : /romaria|romeir/.test(n) ? "fervor" : "";
+}
+function contPendentes() { const a = readJSON(HX_CONT, []); return Array.isArray(a) ? a : []; }
+function contValor(h, ti, k) {
+  let v = num(h.equipes[ti]?.[k]);
+  for (const op of contPendentes()) if (num(op.ti) === ti && op.k === k) v = op.set != null ? Math.max(0, num(op.set)) : Math.max(0, v + num(op.dv));
+  return v;
+}
+function contPedir(op) {
+  const ops = contPendentes(); ops.push({ at: Date.now(), ...op });
+  lsSet(HX_CONT, JSON.stringify(ops.slice(-200)));
+}
+function hxContadores(h) {
+  const lista = h.equipes.map((t, ti) => ({ t, ti, k: contadorDe(t) })).filter((x) => x.k);
+  if (!lista.length) return `<p class="muted small hxcnone">🩸 Fome e 🕯 Fervor aparecem aqui quando houver uma equipe “Os Comensais” ou “A Romaria” (ou com o contador escolhido na aba Equipes do Hexatombe).</p>`;
+  return `<div class="hxconts">${lista.map(({ t, ti, k }) => { const c = CONTADORES[k];
+    return `<div class="hxcont" style="--c:${esc(t.cor || "#888")}"><div class="hxch"><b>${c.ic} ${c.nome}</b><span class="muted small">${esc(t.nome)}</span></div>
+      <div class="hxcc"><button class="ghost small" data-a="hxCont" data-ti="${ti}" data-k="${k}" data-dv="-5">−5</button><button class="ghost" data-a="hxCont" data-ti="${ti}" data-k="${k}" data-dv="-1">−</button>
+      <input type="number" min="0" class="hxcv" data-hxcont="${ti}|${k}" value="${contValor(h, ti, k)}">
+      <button class="ghost" data-a="hxCont" data-ti="${ti}" data-k="${k}" data-dv="1">+</button><button class="ghost small" data-a="hxCont" data-ti="${ti}" data-k="${k}" data-dv="5">+5</button></div></div>`; }).join("")}</div>`;
 }
 function pcCard(s, h) {
   const open = !!ui.open[s.id]; const x = hxMember(s.id, h);
@@ -945,6 +974,8 @@ function val(id) { return document.getElementById(id)?.value ?? ""; }
 function grupoIds() { return Object.entries(ui.grupo).filter(([, v]) => v).map(([k]) => k).filter((id) => getSheet(id)); }
 
 $app.addEventListener("change", (ev) => {
+  const hc = ev.target.dataset?.hxcont;
+  if (hc) { const [ti, k] = hc.split("|"); contPedir({ ti: num(ti), k, set: Math.max(0, Math.round(num(ev.target.value))) }); render(); return; }
   const el = ev.target; const d = el.dataset;
   if (d.secsel) { ui.secSel[d.secsel] = el.checked; return; }
   if (d.grp) { ui.grupo[d.grp] = el.checked; return; }
@@ -1145,6 +1176,8 @@ $app.addEventListener("click", async (ev) => {
       for (const sid of ids) applySheet(sid, (s) => { s.condicoes = s.condicoes.filter((x) => x !== c); if (a === "gCondAdd") s.condicoes.push(c); }, `${c} em grupo`);
       toast(`${a === "gCondAdd" ? "Aplicado" : "Tirado"}: ${c}.`); return render();
     }
+    case "hxCont": { const h = hx(); if (!h) return; const ti = num(b.dataset.ti), k = b.dataset.k; contPedir({ ti, k, dv: num(b.dataset.dv) });
+      const c = CONTADORES[k]; toast(`${h.equipes[ti]?.nome}: ${c.ic} ${c.nome} ${contValor(h, ti, k)}`); return render(); }
     case "anunciar": { const t = val("anuncio").trim(); if (!t) return; anunciar(`📢 ${t}`); toast("Anúncio enviado."); document.getElementById("anuncio").value = ""; return; }
     case "nome": ui.nome = `${pick(NOMES)} ${pick(SOBRENOMES)}`; return render();
     case "nomeCirco": ui.nome = `${pick(NOMES)}, ${pick(APELIDOS)}`; return render();
@@ -1314,6 +1347,7 @@ window.addEventListener("storage", (e) => {
   if ([fichaKey(), hxKey(), logKey()].includes(e.key)) softRender();
   if (e.key === mineKey()) { loadMine(); softRender(); }
   if (e.key === FILA()) processarFila();
+  if (e.key === HX_CONT) softRender();
   if (e.key === susKey() && tab === "secretas") softRender();
 });
 

@@ -114,3 +114,8 @@ Arquivos novos: `sussurro.html` e `sussurro.js`. Suba os dois junto com os outro
 - Cartões dos agentes, combate, secretas e cena redesenhados: mais respiro, barras arredondadas, etiquetas por cor de equipe, ações agrupadas.
 - Opções do combate (anel, aviso, câmera, rerrolar, limpar) recolhidas em “⚙ Opções do combate”.
 - Janela ajustável: botão ⤡ no topo (tamanhos prontos e ajuste fino) ou arraste a alça ◢ no canto inferior direito.
+
+## Novidades da versão 1.8 — Fome e Fervor
+
+- No resumo do Hexatombe (aba Mesa), as equipes **Os Comensais** e **A Romaria** ganham contadores de **🩸 Fome** e **🕯 Fervor**: −5, −, +, +5 ou digite o valor. A mudança vai para o Hexatombe (mesmo com a janela dele fechada) e aparece lá também.
+- Para usar o contador em outra equipe, escolha-o no cartão da equipe, na aba Equipes do Hexatombe.

@@ -6,7 +6,7 @@
    resolver sem luta e o que se ganha. Usa o gerador de NPC para
    cada grupo. Números aproximados, para improvisar.
    ========================================================= */
-import { gerarNpc, pick, sortear, chance } from "./gerador.js?v=1.7.0";
+import { gerarNpc, pick, sortear, chance } from "./gerador.js?v=1.8.0";
 
 export const TEMAS_ENC = [
   ["sorteio", "🎲 Qualquer um"], ["culto", "Culto em ritual"], ["circo", "Artistas do circo"], ["armados", "Pessoas armadas"],

@@ -420,3 +420,14 @@ body.tam-arrastando { user-select: none; cursor: nwse-resize; }
 h3 .muted, h3 small { text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 12px; }
 .row.wrap:has(> button[data-a=dado]) { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
 .row.wrap:has(> button[data-a=dado]) button { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* Fome e Fervor no resumo do Hexatombe */
+.hxconts { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; margin-top: 8px; }
+.hxcont { border-radius: 8px; padding: 7px 9px; background: color-mix(in srgb, var(--c, #a33) 14%, var(--panel2)); border: 1px solid color-mix(in srgb, var(--c, #a33) 45%, transparent); }
+.hxch { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.hxch b { font-size: 13px; }
+.hxch span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hxcc { display: flex; justify-content: center; align-items: center; gap: 4px; margin-top: 6px; }
+.hxcc button { min-width: 30px; padding: 3px 6px; }
+.hxcv { width: 60px; text-align: center; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; padding: 2px 4px; }
+.hxcnone { margin: 8px 0 0; }
