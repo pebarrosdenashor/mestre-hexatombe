@@ -1,10 +1,10 @@
 import OBR, { buildShape } from "https://cdn.jsdelivr.net/npm/@owlbear-rodeo/sdk@3.1.0/+esm";
-import { CONDICOES, ESTIGMAS, BESTIARIO } from "./dados.js?v=1.6.0";
-import * as PM from "./prato-mestre.js?v=1.6.0";
-import { EFEITOS, AMBIENTES, tocar as tocarLocal, tocarUrl as tocarUrlLocal, setVolume as setVolLocal } from "./sons.js?v=1.6.0";
-import { gerarEquipe, outroMembro, outraHistoriaEquipe, equipeTexto, membroTexto, NEXS, TEMAS, COMPOSICOES } from "./equipe.js?v=1.6.0";
-import { gerarNpc, VDS, TIPOS, PAPEIS, TRACOS, aplicarTraco, outrasHabilidades, outraHistoria, outroNome, loreTexto } from "./gerador.js?v=1.6.0";
-import { gerarEncontro, cenaEncontro, outroGrupo, encontroTexto, TEMAS_ENC, DIFICULDADES, ELEMENTOS_ENC, PAPEL_NOME } from "./encontro.js?v=1.6.0";
+import { CONDICOES, ESTIGMAS, BESTIARIO } from "./dados.js?v=1.7.0";
+import * as PM from "./prato-mestre.js?v=1.7.0";
+import { EFEITOS, AMBIENTES, tocar as tocarLocal, tocarUrl as tocarUrlLocal, setVolume as setVolLocal } from "./sons.js?v=1.7.0";
+import { gerarEquipe, outroMembro, outraHistoriaEquipe, equipeTexto, membroTexto, NEXS, TEMAS, COMPOSICOES } from "./equipe.js?v=1.7.0";
+import { gerarNpc, VDS, TIPOS, PAPEIS, TRACOS, aplicarTraco, outrasHabilidades, outraHistoria, outroNome, loreTexto } from "./gerador.js?v=1.7.0";
+import { gerarEncontro, cenaEncontro, outroGrupo, encontroTexto, TEMAS_ENC, DIFICULDADES, ELEMENTOS_ENC, PAPEL_NOME } from "./encontro.js?v=1.7.0";
 
 /* =========================================================
    Escudo do Mestre — Hexatombe (Owlbear Rodeo)
@@ -302,13 +302,16 @@ function volJogador() { const v = lsGet(`${NS}:vol`); return v === null ? 0.8 : 
 
 function render() {
   if (!isGM()) { $app.innerHTML = viewLocked(); return; }
-  const tabs = [["mesa", "👥 Mesa"], ["secretas", "🙈 Secretas"], ["combate", "⚔ Combate"], ["cena", "🎭 Cena"], ["ferramentas", "🧰 Ferramentas"]];
+  const tabs = [["mesa", "👥", "Mesa"], ["secretas", "🙈", "Secretas"], ["combate", "⚔", "Combate"], ["cena", "🎭", "Cena"], ["ferramentas", "🧰", "Ferramentas"]];
+  const h = hx(); const c = mine.combate;
   const body = { mesa: viewMesa, secretas: viewSecretas, combate: viewCombate, cena: viewCena, ferramentas: viewFerramentas }[tab] || viewMesa;
-  $app.innerHTML = `<header class="top"><h2>Escudo do Mestre</h2><span class="row">
+  $app.innerHTML = `<header class="top"><div class="brand"><span class="brand-ic">🛡</span><div><h2>Escudo do Mestre</h2>
+      <small>${h ? `Hexatombe · Dia ${num(h.dia)} · ${FASES[num(h.fase)] || "?"}` : "Hexatombe"}${c?.ativo ? ` · <b class="live">⚔ Rodada ${num(c.rodada)}</b>` : ""}</small></div></div><span class="row topbtns">
       ${mine.undo.length ? `<button class="icon" data-a="undo" title="Desfazer: ${esc(mine.undo[0].desc)}">↶</button>` : ""}
       <button class="icon" data-a="pedir" title="Pedir as fichas atualizadas aos jogadores">⟳</button>
+      ${obrOk && !IS_MODAL ? `<button class="icon" id="btnTam" title="Tamanho da janela">⤡</button>` : ""}
       ${obrOk ? `<button class="icon" data-a="modal" title="${IS_MODAL ? "Fechar tela grande" : "Abrir em tela grande"}">${IS_MODAL ? "✕" : "⤢"}</button>` : ""}</span></header>
-    <nav class="tabs">${tabs.map(([k, n]) => `<button class="${tab === k ? "on" : ""}" data-tab="${k}">${n}</button>`).join("")}</nav>
+    <nav class="tabs">${tabs.map(([k, i, n]) => `<button class="${tab === k ? "on" : ""}" data-tab="${k}"><span class="ti">${i}</span><span class="tl">${n}</span></button>`).join("")}</nav>
     <main>${body()}</main>`;
 }
 let pending = false;
@@ -327,8 +330,12 @@ function hxResumo() {
   if (!h) return `<section class="card muted small">Hexatombe não encontrado neste navegador. Abra a extensão do Hexatombe uma vez nesta sala.</section>`;
   const vivos = h.equipes.reduce((a, t) => a + (t.membros || []).filter((m) => m.vivo).length, 0);
   const hoje = (h.sacrificios || []).filter((s) => s.dia === h.dia).length;
-  return `<section class="card hxr"><div class="hxline"><b>Dia ${num(h.dia)}</b> · ${FASES[num(h.fase)] || "?"} · ${vivos} vivos · sacrifícios ${(h.sacrificios || []).length}/6${hoje ? ` (${hoje} hoje)` : ""}${h.fracassou ? " · <span class=bad>ritual fracassado</span>" : ""}</div>
-    <div class="teams">${h.equipes.filter((t) => (t.membros || []).length).map((t) => `<span class="team" style="--c:${esc(t.cor || "#888")}"><b>${esc(t.nome)}</b> 💧${num(t.agua)} 🍖${num(t.comida)} ⚙${num(t.sucata)}</span>`).join("")}</div></section>`;
+  const sac = (h.sacrificios || []).length;
+  return `<section class="card hxr">
+    <div class="hxstats"><div><small>Dia</small><b>${num(h.dia)}</b></div><div><small>Fase</small><b class="sm">${FASES[num(h.fase)] || "?"}</b></div><div><small>Vivos</small><b>${vivos}</b></div>
+      <div title="Sacrifícios${hoje ? ` (${hoje} hoje)` : ""}"><small>Sacrifícios</small><span class="sacs">${Array.from({ length: 6 }, (_, i) => `<i class="${i < sac ? "on" : ""}"></i>`).join("")}</span></div></div>
+    ${h.fracassou ? `<div class="hxwarn">Ritual fracassado</div>` : ""}
+    <div class="teams">${h.equipes.filter((t) => (t.membros || []).length).map((t) => `<div class="team" style="--c:${esc(t.cor || "#888")}"><b>${esc(t.nome)}</b><span class="rs"><span title="Água">💧 ${num(t.agua)}</span><span title="Comida">🍖 ${num(t.comida)}</span><span title="Sucata">⚙ ${num(t.sucata)}</span></span></div>`).join("")}</div></section>`;
 }
 function pcCard(s, h) {
   const open = !!ui.open[s.id]; const x = hxMember(s.id, h);
@@ -357,7 +364,7 @@ function pcCard(s, h) {
     <div class="pcbody">
       <div class="grid5">${ATTRS.map(([a]) => `<div class="att"><small>${a}</small><b>${attrVal(s, a)}</b></div>`).join("")}</div>
       <div class="stats"><span>Defesa <b>${defesa(s)}</b></span><span>Desloc. <b>${desloc(s)}m</b></span>${num(s.rdGeral) ? `<span>RD <b>${num(s.rdGeral)}</b></span>` : ""}${num(s.pvTemp) ? `<span>PV temp. <b>${num(s.pvTemp)}</b></span>` : ""}<span>Morrendo <b>${num(s.morrendo)}</b></span>${isDet(s) ? "" : `<span>Enlouq. <b>${num(s.enlouquecendo)}</b></span>`}</div>
-      <div class="row wrap act"><input type="number" min="0" class="n4" id="v-${s.id}" placeholder="valor">
+      <div class="row wrap act vida"><input type="number" min="0" class="n4" id="v-${s.id}" placeholder="valor">
         <button data-a="dano" data-id="${s.id}" class="danger">Dano</button><button data-a="cura" data-id="${s.id}">Cura</button>
         <button data-a="pd" data-d="-1" data-id="${s.id}">${resSig(s)}−</button><button data-a="pd" data-d="1" data-id="${s.id}">${resSig(s)}+</button>
         ${isDet(s) ? "" : `<button data-a="san" data-d="-1" data-id="${s.id}">SAN−</button><button data-a="san" data-d="1" data-id="${s.id}">SAN+</button>`}</div>
@@ -462,11 +469,11 @@ function viewCombate() {
   const sheets = allSheets().filter((s) => !c.lista.some((e) => e.sheetId === s.id));
   return `<section class="card cbar"><div class="row between"><b class="round">${c.ativo ? `Rodada ${c.rodada}` : "Fora de combate"}</b>
       <span class="row">${c.ativo ? `<button data-a="cPrev" title="Turno anterior">◂</button><button class="primary" data-a="cNext">Próximo ▸</button><button class="ghost" data-a="cFim">Encerrar</button>` : `<button class="primary" data-a="cIniciar" ${c.lista.length ? "" : "disabled"}>⚔ Iniciar combate</button>`}</span></div>
-      <div class="row wrap small"><label class="chk"><input type="checkbox" data-a="cAnel" ${c.anel ? "checked" : ""}> Anel no token da vez</label>
+      <details class="copts" data-keep="copts" ${ui.copts ? "open" : ""}><summary>⚙ Opções do combate</summary><div class="row wrap small"><label class="chk"><input type="checkbox" data-a="cAnel" ${c.anel ? "checked" : ""}> Anel no token da vez</label>
         <label class="chk"><input type="checkbox" data-a="cAnunciar" ${c.anunciar ? "checked" : ""}> Avisar a mesa de quem é a vez</label>
         <label class="chk"><input type="checkbox" data-a="cSeguir" ${c.seguir ? "checked" : ""}> Câmera vai até o token da vez</label>
         <button class="ghost" data-a="cReroll" ${c.lista.length ? "" : "disabled"}>🎲 Rolar iniciativa de novo</button>
-        <button class="ghost danger" data-a="cLimpar" ${c.lista.length ? "" : "disabled"}>Limpar</button></div></section>
+        <button class="ghost danger" data-a="cLimpar" ${c.lista.length ? "" : "disabled"}>Limpar</button></div></details></section>
     <ol class="combat">${rows || `<li class="muted vazio">Ninguém no combate. Adicione abaixo.</li>`}</ol>
     <section class="card"><h3>Adicionar</h3>
       <div class="row wrap"><button data-a="cAddPCs" ${sheets.length ? "" : "disabled"}>＋ Todos os agentes (${sheets.length})</button>

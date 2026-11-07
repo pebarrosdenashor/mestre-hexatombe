@@ -106,3 +106,11 @@ Arquivos novos: `sussurro.html` e `sussurro.js`. Suba os dois junto com os outro
 
 - **Prato do mestre**: os dados que o mestre rola no Hexatombe e no Painel do Mestre caem num prato de dados só dele, com a mesma aparência escolhida na ficha (Dados › Aparência dos dados e do prato). Nada é enviado pela sala: os jogadores nunca veem esse prato.
 - O botão 🎲 no canto de baixo reabre o prato; 🕘 mostra as últimas rolagens do mestre (das três extensões) e 📌 deixa o prato aberto.
+
+## v1.7 — visual novo
+
+- Cabeçalho fixo com o dia, a fase e a rodada do combate sempre à vista; abas com ícone e nome.
+- Resumo do Hexatombe em blocos (dia, fase, vivos, 6 marcadores de sacrifício) e equipes com seus recursos.
+- Cartões dos agentes, combate, secretas e cena redesenhados: mais respiro, barras arredondadas, etiquetas por cor de equipe, ações agrupadas.
+- Opções do combate (anel, aviso, câmera, rerrolar, limpar) recolhidas em “⚙ Opções do combate”.
+- Janela ajustável: botão ⤡ no topo (tamanhos prontos e ajuste fino) ou arraste a alça ◢ no canto inferior direito.
