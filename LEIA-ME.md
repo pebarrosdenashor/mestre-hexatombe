@@ -119,3 +119,10 @@ Arquivos novos: `sussurro.html` e `sussurro.js`. Suba os dois junto com os outro
 
 - No resumo do Hexatombe (aba Mesa), as equipes **Os Comensais** e **A Romaria** ganham contadores de **🩸 Fome** e **🕯 Fervor**: −5, −, +, +5 ou digite o valor. A mudança vai para o Hexatombe (mesmo com a janela dele fechada) e aparece lá também.
 - Para usar o contador em outra equipe, escolha-o no cartão da equipe, na aba Equipes do Hexatombe.
+
+## Novidades da versão 1.9 — Fome e Fervor no combate
+
+- **Fome é de cada comensal:** cada integrante de Os Comensais tem o próprio contador. **Fervor do andor** é um só, compartilhado por toda A Romaria.
+- Na aba **Combate**, quem for da Romaria ou dos Comensais ganha uma faixa com o contador logo abaixo do nome (− valor +). Todos os romeiros mostram o mesmo Fervor do andor.
+- O combatente é ligado ao integrante sozinho, pela ficha ou pelo nome (inclusive "Nome 2"). Se não ligar, abra a linha do combatente e escolha em **Contador**; dá também para escolher "Nenhum".
+- No resumo do Hexatombe (aba Mesa), Os Comensais mostram a Fome de cada um.

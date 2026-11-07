@@ -431,3 +431,13 @@ h3 .muted, h3 small { text-transform: none; letter-spacing: 0; font-weight: 400;
 .hxcc button { min-width: 30px; padding: 3px 6px; }
 .hxcv { width: 60px; text-align: center; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; padding: 2px 4px; }
 .hxcnone { margin: 8px 0 0; }
+.hxcm { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-top: 5px; font-size: 12.5px; }
+.hxcm > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hxcm .hxcc { margin-top: 0; }
+.hxcm .hxcv { width: 46px; font-size: 14px; }
+.hxcm.dead { opacity: .45; text-decoration: line-through; }
+/* contador na linha do combatente */
+.ccont { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0 8px 6px; padding: 4px 8px; border-radius: 7px; background: color-mix(in srgb, var(--c, #a33) 16%, var(--panel2)); border-left: 3px solid var(--c, #a33); }
+.ccont .hxcc { margin-top: 0; }
+.ccont .hxcv { width: 48px; font-size: 15px; }
+.ccont button { min-width: 26px; padding: 2px 6px; }

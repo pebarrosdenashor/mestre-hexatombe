@@ -1,10 +1,10 @@
 import OBR, { buildShape } from "https://cdn.jsdelivr.net/npm/@owlbear-rodeo/sdk@3.1.0/+esm";
-import { CONDICOES, ESTIGMAS, BESTIARIO } from "./dados.js?v=1.8.0";
-import * as PM from "./prato-mestre.js?v=1.8.0";
-import { EFEITOS, AMBIENTES, tocar as tocarLocal, tocarUrl as tocarUrlLocal, setVolume as setVolLocal } from "./sons.js?v=1.8.0";
-import { gerarEquipe, outroMembro, outraHistoriaEquipe, equipeTexto, membroTexto, NEXS, TEMAS, COMPOSICOES } from "./equipe.js?v=1.8.0";
-import { gerarNpc, VDS, TIPOS, PAPEIS, TRACOS, aplicarTraco, outrasHabilidades, outraHistoria, outroNome, loreTexto } from "./gerador.js?v=1.8.0";
-import { gerarEncontro, cenaEncontro, outroGrupo, encontroTexto, TEMAS_ENC, DIFICULDADES, ELEMENTOS_ENC, PAPEL_NOME } from "./encontro.js?v=1.8.0";
+import { CONDICOES, ESTIGMAS, BESTIARIO } from "./dados.js?v=1.9.0";
+import * as PM from "./prato-mestre.js?v=1.9.0";
+import { EFEITOS, AMBIENTES, tocar as tocarLocal, tocarUrl as tocarUrlLocal, setVolume as setVolLocal } from "./sons.js?v=1.9.0";
+import { gerarEquipe, outroMembro, outraHistoriaEquipe, equipeTexto, membroTexto, NEXS, TEMAS, COMPOSICOES } from "./equipe.js?v=1.9.0";
+import { gerarNpc, VDS, TIPOS, PAPEIS, TRACOS, aplicarTraco, outrasHabilidades, outraHistoria, outroNome, loreTexto } from "./gerador.js?v=1.9.0";
+import { gerarEncontro, cenaEncontro, outroGrupo, encontroTexto, TEMAS_ENC, DIFICULDADES, ELEMENTOS_ENC, PAPEL_NOME } from "./encontro.js?v=1.9.0";
 
 /* =========================================================
    Escudo do Mestre — Hexatombe (Owlbear Rodeo)
@@ -340,7 +340,7 @@ function hxResumo() {
 }
 /* Fome (Os Comensais) e Fervor (A Romaria): o pedido vai pelo navegador e o Hexatombe aplica */
 const HX_CONT = HX_NS + ":contador";
-const CONTADORES = { fome: { nome: "Fome", ic: "🩸" }, fervor: { nome: "Fervor", ic: "🕯" } };
+const CONTADORES = { fome: { nome: "Fome", ic: "🩸", porMembro: true }, fervor: { nome: "Fervor do andor", ic: "🕯" } }; // Fome: de cada comensal; Fervor: um só para a Romaria
 function contadorDe(t) {
   if (!t) return "";
   if (t.contador != null) return CONTADORES[t.contador] ? t.contador : "";
@@ -348,10 +348,47 @@ function contadorDe(t) {
   return /comensa/.test(n) ? "fome" : /romaria|romeir/.test(n) ? "fervor" : "";
 }
 function contPendentes() { const a = readJSON(HX_CONT, []); return Array.isArray(a) ? a : []; }
-function contValor(h, ti, k) {
-  let v = num(h.equipes[ti]?.[k]);
-  for (const op of contPendentes()) if (num(op.ti) === ti && op.k === k) v = op.set != null ? Math.max(0, num(op.set)) : Math.max(0, v + num(op.dv));
+function contValor(h, ti, k, mid = "") {
+  const t = h.equipes[ti]; const alvo = mid ? (t?.membros || []).find((m) => m.id === mid) : t;
+  let v = num(alvo?.[k]);
+  for (const op of contPendentes()) if (num(op.ti) === ti && op.k === k && (op.mid || "") === mid) v = op.set != null ? Math.max(0, num(op.set)) : Math.max(0, v + num(op.dv));
   return v;
+}
+/* − valor + ; com mid, é a Fome daquele integrante */
+function contCtl(h, ti, k, mid = "", grande = false) {
+  const at = `data-ti="${ti}" data-k="${k}" data-mid="${esc(mid)}"`;
+  return `${grande ? `<button class="ghost small" data-a="hxCont" ${at} data-dv="-5">−5</button>` : ""}<button class="ghost" data-a="hxCont" ${at} data-dv="-1">−</button>
+    <input type="number" min="0" class="hxcv" data-hxcont="${ti}|${k}|${esc(mid)}" value="${contValor(h, ti, k, mid)}">
+    <button class="ghost" data-a="hxCont" ${at} data-dv="1">+</button>${grande ? `<button class="ghost small" data-a="hxCont" ${at} data-dv="5">+5</button>` : ""}`;
+}
+/* Qual contador o combatente usa: escolhido à mão, pela ficha ou pelo nome do integrante */
+function cHx(e, h) {
+  if (!h || e.hx === "nenhum") return null;
+  const achar = (ti, mid) => { const t = h.equipes[ti]; const k = contadorDe(t); if (!k) return null; const m = mid ? (t.membros || []).find((x) => x.id === mid) : null; if (mid && !m) return null; return { ti, k, t, m, mid: CONTADORES[k].porMembro ? m?.id || "" : "" }; };
+  if (e.hx) { const [ti, mid] = String(e.hx).split("|"); return achar(num(ti), mid || ""); }
+  if (e.sheetId) { const x = hxMember(e.sheetId, h); if (x) return achar(h.equipes.indexOf(x.t), x.m.id); }
+  const nomes = [e.cri?.nome, e.nome, String(e.nome || "").replace(/\s+\d+$/, "")].filter(Boolean).map((n) => n.trim().toLowerCase());
+  for (let ti = 0; ti < h.equipes.length; ti++) {
+    if (!contadorDe(h.equipes[ti])) continue;
+    const m = (h.equipes[ti].membros || []).find((x) => nomes.includes(hxMemberName(x, h).trim().toLowerCase()));
+    if (m) return achar(ti, m.id);
+  }
+  return null;
+}
+function cContLinha(e, h) {
+  const x = cHx(e, h); if (!x) return "";
+  const c = CONTADORES[x.k]; if (c.porMembro && !x.mid) return "";
+  return `<div class="ccont" style="--c:${esc(x.t.cor || "#888")}"><span class="small"><b>${c.ic} ${c.nome}</b> <span class="muted">${c.porMembro ? "própria" : esc(x.t.nome)}</span></span><span class="hxcc">${contCtl(h, x.ti, x.k, x.mid)}</span></div>`;
+}
+function cHxSelect(e, h) {
+  if (!h) return "";
+  const ops = [];
+  h.equipes.forEach((t, ti) => { const k = contadorDe(t); if (!k) return; const c = CONTADORES[k];
+    if (c.porMembro) for (const m of t.membros || []) ops.push([`${ti}|${m.id}`, `${c.ic} ${hxMemberName(m, h)} (${t.nome})`]);
+    else ops.push([`${ti}|`, `${c.ic} ${c.nome} — ${t.nome}`]); });
+  if (!ops.length) return "";
+  const x = cHx(e, h); const atual = e.hx || "";
+  return `<label class="inl small">Contador <select data-chx="${e.id}"><option value="">Automático${!e.hx && x ? ` (${esc(CONTADORES[x.k].ic)} ${esc(x.m ? hxMemberName(x.m, h) : x.t.nome)})` : ""}</option><option value="nenhum" ${atual === "nenhum" ? "selected" : ""}>Nenhum</option>${ops.map(([v, n]) => `<option value="${esc(v)}" ${atual === v ? "selected" : ""}>${esc(n)}</option>`).join("")}</select></label>`;
 }
 function contPedir(op) {
   const ops = contPendentes(); ops.push({ at: Date.now(), ...op });
@@ -361,10 +398,10 @@ function hxContadores(h) {
   const lista = h.equipes.map((t, ti) => ({ t, ti, k: contadorDe(t) })).filter((x) => x.k);
   if (!lista.length) return `<p class="muted small hxcnone">🩸 Fome e 🕯 Fervor aparecem aqui quando houver uma equipe “Os Comensais” ou “A Romaria” (ou com o contador escolhido na aba Equipes do Hexatombe).</p>`;
   return `<div class="hxconts">${lista.map(({ t, ti, k }) => { const c = CONTADORES[k];
+    if (c.porMembro) return `<div class="hxcont" style="--c:${esc(t.cor || "#888")}"><div class="hxch"><b>${c.ic} ${c.nome}</b><span class="muted small">${esc(t.nome)}</span></div>
+      ${(t.membros || []).length ? (t.membros || []).map((m) => `<div class="hxcm ${m.vivo ? "" : "dead"}"><span>${esc(hxMemberName(m, h))}</span><span class="hxcc">${contCtl(h, ti, k, m.id)}</span></div>`).join("") : `<p class="muted small">Sem integrantes.</p>`}</div>`;
     return `<div class="hxcont" style="--c:${esc(t.cor || "#888")}"><div class="hxch"><b>${c.ic} ${c.nome}</b><span class="muted small">${esc(t.nome)}</span></div>
-      <div class="hxcc"><button class="ghost small" data-a="hxCont" data-ti="${ti}" data-k="${k}" data-dv="-5">−5</button><button class="ghost" data-a="hxCont" data-ti="${ti}" data-k="${k}" data-dv="-1">−</button>
-      <input type="number" min="0" class="hxcv" data-hxcont="${ti}|${k}" value="${contValor(h, ti, k)}">
-      <button class="ghost" data-a="hxCont" data-ti="${ti}" data-k="${k}" data-dv="1">+</button><button class="ghost small" data-a="hxCont" data-ti="${ti}" data-k="${k}" data-dv="5">+5</button></div></div>`; }).join("")}</div>`;
+      <div class="hxcc">${contCtl(h, ti, k, "", true)}</div></div>`; }).join("")}</div>`;
 }
 function pcCard(s, h) {
   const open = !!ui.open[s.id]; const x = hxMember(s.id, h);
@@ -456,7 +493,7 @@ function iniDe(e) {
 }
 function addCombatente(e) { const c = C(); const x = { id: uid(), conds: [], oculto: false, ...e }; const r = iniDe(x); x.ini = r.total; x.pick = r.pick; c.lista.push(x); sortCombate(); saveMine(); return x; }
 function viewCombate() {
-  const c = C(); const best = bestiarioTodo();
+  const c = C(); const best = bestiarioTodo(); const h = hx();
   const alvos = c.lista.map((e) => [e.id, cNome(e)]);
   const rows = c.lista.map((e, i) => {
     const [pv, pvMax] = cPV(e); const atual = c.ativo && i === c.vez; const open = !!ui.cOpen[e.id];
@@ -471,7 +508,7 @@ function viewCombate() {
       extra = `<div class="cbody">
         <div class="row wrap act"><input type="number" min="0" class="n4" id="cv-${e.id}" placeholder="valor"><button class="danger" data-a="cDano" data-id="${e.id}">Dano</button><button data-a="cCura" data-id="${e.id}">Cura</button>
           <label class="inl">Ini <input type="number" class="n3" data-cini="${e.id}" value="${num(e.ini)}"></label>
-          ${e.sheetId ? "" : `<label class="inl">Def <input type="number" class="n3" data-cdef="${e.id}" value="${esc(e.def ?? "")}"></label>`}</div>
+          ${e.sheetId ? "" : `<label class="inl">Def <input type="number" class="n3" data-cdef="${e.id}" value="${esc(e.def ?? "")}"></label>`}${cHxSelect(e, h)}</div>
         <div class="row wrap act"><select id="cc-${e.id}"><option value="">＋ condição…</option>${CONDICOES.map(([n]) => `<option>${esc(n)}</option>`).join("")}</select>
           <input type="number" min="0" class="n3" id="cr-${e.id}" placeholder="rod." title="Rodadas (vazio = sem prazo)"><button data-a="cCond" data-id="${e.id}">Aplicar</button></div>
         ${cri ? `<div class="cri"><small class="muted">${esc(cri.tipo || "")}${cri.vd ? ` · VD ${esc(cri.vd)}` : ""}${cri.rd ? ` · RD ${esc(cri.rd)}` : ""}${cri.vuln ? ` · vuln. ${esc(cri.vuln)}` : ""}${cri.desl ? ` · ${esc(cri.desl)}` : ""}</small>
@@ -492,6 +529,7 @@ function viewCombate() {
     return `<li class="comb ${atual ? "turn" : ""} ${caido ? "down" : ""} ${e.sheetId ? "pcrow" : "npc"}">
       <div class="chead" data-a="cToggle" data-id="${e.id}"><span class="ini">${num(e.ini)}</span><span class="cn"><b>${esc(cNome(e))}</b>${e.oculto ? " 🙈" : ""}${e.tokenId ? " 🎯" : ""}</span>
         <span class="cdef" title="Defesa">🛡${cDef(e)}</span>${pvMax ? bar("pv", pv, pvMax, "PV") : `<span class="muted small">PV ${pv}</span>`}</div>
+      ${cContLinha(e, h)}
       ${conds.length ? `<div class="chips">${conds.map((n) => `<button class="chip on" data-a="cCondDel" data-id="${e.id}" data-c="${esc(n)}" title="${esc(COND_MAP[n]?.d || "")}">${esc(n)}${timed[n] ? ` ⏱${timed[n]}` : ""} ✕</button>`).join("")}</div>` : ""}
       ${extra}</li>`;
   }).join("");
@@ -975,7 +1013,9 @@ function grupoIds() { return Object.entries(ui.grupo).filter(([, v]) => v).map((
 
 $app.addEventListener("change", (ev) => {
   const hc = ev.target.dataset?.hxcont;
-  if (hc) { const [ti, k] = hc.split("|"); contPedir({ ti: num(ti), k, set: Math.max(0, Math.round(num(ev.target.value))) }); render(); return; }
+  if (hc) { const [ti, k, mid] = hc.split("|"); contPedir({ ti: num(ti), k, set: Math.max(0, Math.round(num(ev.target.value))), ...(mid ? { mid } : {}) }); render(); return; }
+  const chx = ev.target.dataset?.chx;
+  if (chx) { const e = findC(chx); if (e) { if (ev.target.value) e.hx = ev.target.value; else delete e.hx; saveMine(); render(); } return; }
   const el = ev.target; const d = el.dataset;
   if (d.secsel) { ui.secSel[d.secsel] = el.checked; return; }
   if (d.grp) { ui.grupo[d.grp] = el.checked; return; }
@@ -1176,8 +1216,10 @@ $app.addEventListener("click", async (ev) => {
       for (const sid of ids) applySheet(sid, (s) => { s.condicoes = s.condicoes.filter((x) => x !== c); if (a === "gCondAdd") s.condicoes.push(c); }, `${c} em grupo`);
       toast(`${a === "gCondAdd" ? "Aplicado" : "Tirado"}: ${c}.`); return render();
     }
-    case "hxCont": { const h = hx(); if (!h) return; const ti = num(b.dataset.ti), k = b.dataset.k; contPedir({ ti, k, dv: num(b.dataset.dv) });
-      const c = CONTADORES[k]; toast(`${h.equipes[ti]?.nome}: ${c.ic} ${c.nome} ${contValor(h, ti, k)}`); return render(); }
+    case "hxCont": { const h = hx(); if (!h) return; const ti = num(b.dataset.ti), k = b.dataset.k, mid = b.dataset.mid || "";
+      contPedir({ ti, k, dv: num(b.dataset.dv), ...(mid ? { mid } : {}) });
+      const c = CONTADORES[k]; const m = mid ? (h.equipes[ti]?.membros || []).find((x) => x.id === mid) : null;
+      toast(`${m ? hxMemberName(m, h) : h.equipes[ti]?.nome}: ${c.ic} ${c.nome} ${contValor(h, ti, k, mid)}`); return render(); }
     case "anunciar": { const t = val("anuncio").trim(); if (!t) return; anunciar(`📢 ${t}`); toast("Anúncio enviado."); document.getElementById("anuncio").value = ""; return; }
     case "nome": ui.nome = `${pick(NOMES)} ${pick(SOBRENOMES)}`; return render();
     case "nomeCirco": ui.nome = `${pick(NOMES)}, ${pick(APELIDOS)}`; return render();
