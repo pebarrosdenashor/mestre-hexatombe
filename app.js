@@ -1,10 +1,10 @@
 import OBR, { buildShape } from "https://cdn.jsdelivr.net/npm/@owlbear-rodeo/sdk@3.1.0/+esm";
-import { CONDICOES, ESTIGMAS, BESTIARIO } from "./dados.js?v=1.9.0";
-import * as PM from "./prato-mestre.js?v=1.9.0";
-import { EFEITOS, AMBIENTES, tocar as tocarLocal, tocarUrl as tocarUrlLocal, setVolume as setVolLocal } from "./sons.js?v=1.9.0";
-import { gerarEquipe, outroMembro, outraHistoriaEquipe, equipeTexto, membroTexto, NEXS, TEMAS, COMPOSICOES } from "./equipe.js?v=1.9.0";
-import { gerarNpc, VDS, TIPOS, PAPEIS, TRACOS, aplicarTraco, outrasHabilidades, outraHistoria, outroNome, loreTexto } from "./gerador.js?v=1.9.0";
-import { gerarEncontro, cenaEncontro, outroGrupo, encontroTexto, TEMAS_ENC, DIFICULDADES, ELEMENTOS_ENC, PAPEL_NOME } from "./encontro.js?v=1.9.0";
+import { CONDICOES, ESTIGMAS, BESTIARIO } from "./dados.js?v=1.10.0";
+import * as PM from "./prato-mestre.js?v=1.10.0";
+import { EFEITOS, AMBIENTES, tocar as tocarLocal, tocarUrl as tocarUrlLocal, setVolume as setVolLocal } from "./sons.js?v=1.10.0";
+import { gerarEquipe, outroMembro, outraHistoriaEquipe, equipeTexto, membroTexto, NEXS, TEMAS, COMPOSICOES } from "./equipe.js?v=1.10.0";
+import { gerarNpc, VDS, TIPOS, PAPEIS, TRACOS, aplicarTraco, outrasHabilidades, outraHistoria, outroNome, loreTexto } from "./gerador.js?v=1.10.0";
+import { gerarEncontro, cenaEncontro, outroGrupo, encontroTexto, TEMAS_ENC, DIFICULDADES, ELEMENTOS_ENC, PAPEL_NOME } from "./encontro.js?v=1.10.0";
 
 /* =========================================================
    Escudo do Mestre — Hexatombe (Owlbear Rodeo)
@@ -110,7 +110,7 @@ const logKey = () => `${NS}:log:${roomId}`;
 function defMine() {
   return { combate: { lista: [], vez: 0, rodada: 1, ativo: false, anel: true, anunciar: true, seguir: false }, ocultas: [], notas: "", soOnline: false, undo: [],
     npcs: [], cenas: {}, relogios: [], timer: null, amb: { loops: [], url: "", urlVol: 0.6, vols: {} }, gen: { tipo: "Sangue", vd: 40, papel: "comum", traco: "nenhum" },
-    sonsLink: [], cenasSom: [], susFav: [], sussurros: [] };
+    sonsLink: [], cenasSom: [], susFav: [], sussurros: [], estNpc: {} };
 }
 let mine = defMine();
 function loadMine() {
@@ -118,6 +118,7 @@ function loadMine() {
   mine = { ...d, ...(m || {}), combate: { ...d.combate, ...(m?.combate || {}) }, amb: { ...d.amb, ...(m?.amb || {}) }, gen: { ...d.gen, ...(m?.gen || {}) } };
   for (const k of ["sonsLink", "cenasSom", "susFav", "sussurros"]) if (!Array.isArray(mine[k])) mine[k] = [];
   mine.amb.vols ||= {};
+  if (!mine.estNpc || typeof mine.estNpc !== "object" || Array.isArray(mine.estNpc)) mine.estNpc = {};
 }
 function saveMine() { lsSet(mineKey(), JSON.stringify(mine)); }
 
@@ -375,6 +376,54 @@ function cHx(e, h) {
   }
   return null;
 }
+/* ---------- Habilidade do Estigma (NPCs sacrifício) ----------
+   O mestre escolhe o estigma do sacrifício e qual habilidade dele é a "do Estigma".
+   Fica guardado pelo nome da criatura, então volta igual quando o NPC entra em outro combate.
+   Ao usar, todos da sala veem a animação do estigma e ouvem o som (background.js → estigma.html). */
+const EST_NPC = ESTIGMAS.map((x) => x.nome).filter((n) => n !== "Obsessão"); // a Obsessão é do jogador
+const estArt = (n) => (n === "Culpa" ? "da" : "do");
+function estChave(e) { return String(e.cri?.nome || e.nome || "").replace(/\s+\d+$/, "").trim().toLowerCase(); }
+function habNome(h) { const m = /^([^:(]{2,40}(?: \([^)]*\))?):\s/.exec(String(h)); return (m ? m[1] : String(h).slice(0, 40)).trim(); }
+// estigma do integrante do Hexatombe com o mesmo nome (sugestão automática)
+function estSacDe(e, h) {
+  if (!h) return "";
+  const nomes = [e.cri?.nome, e.nome, String(e.nome || "").replace(/\s+\d+$/, "")].filter(Boolean).map((n) => n.trim().toLowerCase());
+  for (const t of h.equipes) for (const m of t.membros || []) if (m.sac && EST_NPC.includes(m.sac) && nomes.includes(hxMemberName(m, h).trim().toLowerCase())) return m.sac;
+  return "";
+}
+function estDe(e, h) {
+  const c = mine.estNpc[estChave(e)] || {};
+  return { est: "est" in c ? c.est : estSacDe(e, h), hab: c.hab || "" };
+}
+function estConf(e) { return (mine.estNpc[estChave(e)] ||= {}); }
+function estigmaUI(e, h) {
+  const x = estDe(e, h); const habs = (e.cri?.hab || []).map(habNome);
+  const outra = ui.estOutra?.[e.id] || (x.hab && !habs.includes(x.hab));
+  return `<div class="estcfg"><div class="row between"><b class="estt">✠ Habilidade do Estigma</b><span class="muted small">${x.est ? `Estigma ${estArt(x.est)} ${esc(x.est)}` : "não é sacrifício"}</span></div>
+    <div class="row wrap"><select data-cest="${e.id}" title="Estigma deste sacrifício"><option value="">— sem estigma —</option>${EST_NPC.map((n) => `<option ${x.est === n ? "selected" : ""}>${esc(n)}</option>`).join("")}</select>
+      ${x.est ? `<select data-chab="${e.id}" title="Qual habilidade é a do Estigma"><option value="">qual habilidade…</option>${habs.map((n) => `<option ${!outra && x.hab === n ? "selected" : ""}>${esc(n)}</option>`).join("")}<option value="__outra" ${outra ? "selected" : ""}>✎ Outra (digitar)</option></select>
+      ${outra ? `<input data-chabtxt="${e.id}" value="${esc(x.hab)}" placeholder="Nome da habilidade" maxlength="60">` : ""}` : ""}</div>
+    ${x.est ? `<div class="row wrap"><button class="est" data-a="cEstUsar" data-id="${e.id}">✠ Usar${x.hab ? `: ${esc(x.hab)}` : " a habilidade do Estigma"}</button><button class="ghost" data-a="cEstPrev" data-id="${e.id}" title="Ver a animação só na sua tela">👁 Prévia</button></div>
+      <p class="muted small">Todos na sala veem o estigma ${estArt(x.est)} ${esc(x.est)} na tela e ouvem o som. O nome do NPC e da habilidade não aparecem para eles.</p>` : ""}</div>`;
+}
+const EST_MODAL = NS + "/estigma";
+function previaEstigma(est) {
+  if (!EST_NPC.includes(est)) return;
+  tocarLocal("estigma-" + est);
+  if (!obrOk) return toast("Abra dentro do Owlbear para ver a animação.");
+  const url = new URL("estigma.html?v=1.10.0", location.href).href + "#d=" + encodeURIComponent(JSON.stringify({ e: est, n: Date.now() }));
+  OBR.modal.close(EST_MODAL).catch(() => {}).finally(() => OBR.modal.open({ id: EST_MODAL, url, fullScreen: true, hideBackdrop: true, hidePaper: true, disablePointerEvents: true }).catch(() => {}));
+}
+function usarEstigma(e) {
+  const x = estDe(e, hx()); if (!x.est) return toast("Escolha o estigma deste sacrifício primeiro.");
+  if (Date.now() - (ui.estAt || 0) < 2000) return; // clique duplo
+  ui.estAt = Date.now();
+  addLog(`✠ ${cNome(e)} usou ${x.hab || "a habilidade do Estigma"} (Estigma ${estArt(x.est)} ${x.est})`);
+  if (ui.previa || !obrOk) { previaEstigma(x.est); return toast("Modo prévia: só você viu."); }
+  OBR.broadcast.sendMessage(CH, { kind: "estigma", e: x.est, n: Date.now() }, { destination: "ALL" })
+    .then(() => toast(`✠ Estigma ${estArt(x.est)} ${x.est} na tela de todos.`))
+    .catch(() => toast("Não deu para mostrar o estigma agora. Tente de novo."));
+}
 function cContLinha(e, h) {
   const x = cHx(e, h); if (!x) return "";
   const c = CONTADORES[x.k]; if (c.porMembro && !x.mid) return "";
@@ -494,6 +543,7 @@ function iniDe(e) {
 function addCombatente(e) { const c = C(); const x = { id: uid(), conds: [], oculto: false, ...e }; const r = iniDe(x); x.ini = r.total; x.pick = r.pick; c.lista.push(x); sortCombate(); saveMine(); return x; }
 function viewCombate() {
   const c = C(); const best = bestiarioTodo(); const h = hx();
+  const estX = (e) => estDe(e, h);
   const alvos = c.lista.map((e) => [e.id, cNome(e)]);
   const rows = c.lista.map((e, i) => {
     const [pv, pvMax] = cPV(e); const atual = c.ativo && i === c.vez; const open = !!ui.cOpen[e.id];
@@ -517,9 +567,10 @@ function viewCombate() {
           ${(cri.extra || []).map((a) => `<button class="atk" data-a="cExtra" data-id="${e.id}" data-e="${esc(a[1])}" data-n="${esc(a[0])}"><b>${esc(a[0])}</b> <span>${esc(a[1])}</span></button>`).join("")}
           <div class="row wrap">${["Fortitude", "Reflexos", "Vontade"].map((r) => `<button data-a="cRes" data-id="${e.id}" data-r="${r}">${r} ${esc(cri.res?.[r] || "1d20")}</button>`).join("")}<button data-a="cRes" data-id="${e.id}" data-r="Percepção">Percepção ${esc(cri.per || "1d20")}</button></div>
           ${cri.attrs ? `<p class="small muted">${esc(cri.attrs)}</p>` : ""}
-          ${(cri.hab || []).length ? `<details><summary>Habilidades</summary><ul class="small">${cri.hab.map((h) => `<li>${habHTML(h)}</li>`).join("")}</ul></details>` : ""}
+          ${(cri.hab || []).length ? `<details><summary>Habilidades</summary><ul class="small">${cri.hab.map((hb) => `<li class="${estX(e).est && estX(e).hab === habNome(hb) ? "esthab" : ""}">${habHTML(hb)}</li>`).join("")}</ul></details>` : ""}
           ${cri.lore ? `<details><summary>História</summary><ul class="small lore">${loreTexto(cri.lore).map((t) => `<li>${esc(t)}</li>`).join("")}</ul></details>` : ""}
           ${cri.pp ? `<p class="small"><b>Presença perturbadora:</b> ${esc(cri.pp)}</p>` : ""}</div>` : ""}
+        ${e.sheetId ? "" : estigmaUI(e, h)}
         ${ui.cRes?.id === e.id ? `<div class="res">${esc(ui.cRes.txt).replace(/\n/g, "<br>")}${ui.cRes.dano != null && ui.cRes.alvo ? ` <button data-a="cAplicar" data-id="${ui.cRes.alvo}" data-v="${ui.cRes.dano}">Aplicar ${ui.cRes.dano} de dano</button>` : ""}</div>` : ""}
         <div class="row wrap foot">${e.sheetId ? `<button class="ghost" data-a="abrirFicha" data-id="${e.sheetId}">📄 Ficha</button>` : `<button class="ghost" data-a="cVincular" data-id="${e.id}">🎯 Vincular token selecionado</button>`}
           <button class="ghost" data-a="cSel" data-id="${e.id}">📍 Mostrar no mapa</button>
@@ -527,7 +578,7 @@ function viewCombate() {
           <button class="ghost danger" data-a="cDel" data-id="${e.id}">Remover</button></div></div>`;
     }
     return `<li class="comb ${atual ? "turn" : ""} ${caido ? "down" : ""} ${e.sheetId ? "pcrow" : "npc"}">
-      <div class="chead" data-a="cToggle" data-id="${e.id}"><span class="ini">${num(e.ini)}</span><span class="cn"><b>${esc(cNome(e))}</b>${e.oculto ? " 🙈" : ""}${e.tokenId ? " 🎯" : ""}</span>
+      <div class="chead" data-a="cToggle" data-id="${e.id}"><span class="ini">${num(e.ini)}</span><span class="cn"><b>${esc(cNome(e))}</b>${e.oculto ? " 🙈" : ""}${e.tokenId ? " 🎯" : ""}${!e.sheetId && estX(e).est ? ` <button class="estbtn" data-a="cEstUsar" data-id="${e.id}" title="Usar ${esc(estX(e).hab || "a habilidade do Estigma")} — Estigma ${estArt(estX(e).est)} ${esc(estX(e).est)} (todos veem)">✠</button>` : ""}</span>
         <span class="cdef" title="Defesa">🛡${cDef(e)}</span>${pvMax ? bar("pv", pv, pvMax, "PV") : `<span class="muted small">PV ${pv}</span>`}</div>
       ${cContLinha(e, h)}
       ${conds.length ? `<div class="chips">${conds.map((n) => `<button class="chip on" data-a="cCondDel" data-id="${e.id}" data-c="${esc(n)}" title="${esc(COND_MAP[n]?.d || "")}">${esc(n)}${timed[n] ? ` ⏱${timed[n]}` : ""} ✕</button>`).join("")}</div>` : ""}
@@ -932,7 +983,7 @@ function viewFerramentas() {
       if (m.vivo && (m.des || (m.sheetId && getSheet(m.sheetId)?.hexa?.desertor))) des.push(`${hxMemberName(m, h)} (${t.nome})`);
     }
     estig = `<section class="card"><h3>Sacrifícios e estigmas <span class="muted small">só o mestre</span></h3>
-      <ul class="estig">${ESTIGMAS.map((e) => `<li class="${lib.has(e.nome) ? "feito" : ""}"><b>${esc(e.nome)}</b>${lib.has(e.nome) ? " ✠ realizado" : ""}
+      <ul class="estig">${ESTIGMAS.map((e) => `<li class="${lib.has(e.nome) ? "feito" : ""}"><b>${esc(e.nome)}</b>${lib.has(e.nome) ? " ✠ realizado" : ""}${EST_NPC.includes(e.nome) ? ` <button class="ghost small" data-a="estPrev" data-e="${esc(e.nome)}" title="Ver a animação e ouvir o som só na sua tela">👁 Prévia</button>` : ""}
         <div class="small">Com o estigma: <b>${(carrega[e.nome] || []).map(esc).join(", ") || "ninguém vivo"}</b></div>
         <div class="small muted">Intenção: ${esc(e.missao)}</div></li>`).join("")}</ul>
       ${des.length ? `<p class="small"><b>Desertores vivos:</b> ${des.map(esc).join(", ")}</p>` : ""}
@@ -1017,6 +1068,11 @@ $app.addEventListener("change", (ev) => {
   const chx = ev.target.dataset?.chx;
   if (chx) { const e = findC(chx); if (e) { if (ev.target.value) e.hx = ev.target.value; else delete e.hx; saveMine(); render(); } return; }
   const el = ev.target; const d = el.dataset;
+  if (d.cest) { const e = findC(d.cest); if (e) { estConf(e).est = el.value; saveMine(); render(); } return; }
+  if (d.chab) { const e = findC(d.chab); if (e) { ui.estOutra ||= {}; const c = estConf(e);
+    if (el.value === "__outra") { ui.estOutra[e.id] = true; c.hab = ""; } else { ui.estOutra[e.id] = false; c.hab = el.value; }
+    saveMine(); render(); } return; }
+  if (d.chabtxt) { const e = findC(d.chabtxt); if (e) { estConf(e).hab = el.value.trim().slice(0, 60); saveMine(); render(); } return; }
   if (d.secsel) { ui.secSel[d.secsel] = el.checked; return; }
   if (d.grp) { ui.grupo[d.grp] = el.checked; return; }
   if (d.cini) { const e = findC(d.cini); if (e) { e.ini = num(el.value); e.pick = 0; sortCombate(); saveMine(); render(); } return; }
@@ -1168,6 +1224,9 @@ $app.addEventListener("click", async (ev) => {
       else { e.pv = Math.min(num(e.pvMax) || Infinity, num(e.pv) + x); saveMine(); }
       return render();
     }
+    case "cEstUsar": { const e = findC(id); if (!e) return; usarEstigma(e); return render(); }
+    case "cEstPrev": { const e = findC(id); if (!e) return; const x = estDe(e, hx()); if (x.est) previaEstigma(x.est); return; }
+    case "estPrev": return previaEstigma(b.dataset.e);
     case "cAplicar": { const e = findC(id); if (!e) return; danoC(e, num(b.dataset.v)); ui.cRes = null; return render(); }
     case "cCond": {
       const e = findC(id); const c = val(`cc-${id}`); if (!c) return; const r = num(val(`cr-${id}`));

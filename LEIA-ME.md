@@ -126,3 +126,9 @@ Arquivos novos: `sussurro.html` e `sussurro.js`. Suba os dois junto com os outro
 - Na aba **Combate**, quem for da Romaria ou dos Comensais ganha uma faixa com o contador logo abaixo do nome (− valor +). Todos os romeiros mostram o mesmo Fervor do andor.
 - O combatente é ligado ao integrante sozinho, pela ficha ou pelo nome (inclusive "Nome 2"). Se não ligar, abra a linha do combatente e escolha em **Contador**; dá também para escolher "Nenhum".
 - No resumo do Hexatombe (aba Mesa), Os Comensais mostram a Fome de cada um.
+
+## Novidades da versão 1.10
+- **Habilidade do Estigma (NPCs sacrifício):** no Combate, abra um NPC e use a caixa vermelha **✠ Habilidade do Estigma**. Escolha o estigma do sacrifício (Desejo, Rancor, Culpa, Prazer ou Orgulho) e qual habilidade dele é a do Estigma (ou digite outro nome). Fica guardado pelo nome do NPC: se ele voltar em outro combate, já vem marcado. Se o NPC for um integrante do Hexatombe com estigma, ele já vem sugerido.
+- **✠ Usar:** a tela de todos na sala mostra o símbolo do estigma em vermelho, com brilho, por uns 4 segundos, e toca um som próprio de cada estigma. Os jogadores não veem o nome do NPC nem da habilidade. O uso fica no seu registro de rolagens. Também dá para usar pelo botão ✠ ao lado do nome, sem abrir o NPC.
+- **👁 Prévia:** mostra a animação e toca o som só para você (também em Ferramentas → Sacrifícios e estigmas).
+- O estigma da Obsessão é do jogador e não tem animação, por ora.

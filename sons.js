@@ -10,7 +10,7 @@ export const EFEITOS = [
   ["caixinha", "🎶 Caixinha de música"], ["respiracao", "😮‍💨 Respiração na nuca"],
 ];
 /* Sons que as outras extensões pedem (crítico, falha, rituais); não aparecem nos botões */
-export const SISTEMA = ["critico", "falha", "ritual-Sangue", "ritual-Morte", "ritual-Conhecimento", "ritual-Energia", "ritual-Medo", "ritual", "revela"];
+export const SISTEMA = ["critico", "falha", "ritual-Sangue", "ritual-Morte", "ritual-Conhecimento", "ritual-Energia", "ritual-Medo", "ritual", "revela", "estigma-Desejo", "estigma-Rancor", "estigma-Culpa", "estigma-Prazer", "estigma-Orgulho"];
 export const AMBIENTES = [
   ["vento", "🌬 Vento"], ["chuva", "🌧 Chuva"], ["floresta", "🌲 Floresta à noite"], ["drone", "🕯 Tensão"], ["pulso", "💓 Batimento"], ["radio", "📡 Rádio chiando"],
   ["realejo", "🎠 Realejo do circo"], ["goteira", "💧 Goteira"],
@@ -248,6 +248,89 @@ const UMA = {
     return 3.2;
   },
 };
+
+/* ---------- Estigmas dos sacrifícios (tocam junto com a animação) ---------- */
+function distorcer(k = 40) {
+  const w = ac().createWaveShaper(); const n = 1024; const cv = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const x = (i * 2) / n - 1; cv[i] = ((3 + k) * x * 20 * Math.PI / 180) / (Math.PI + k * Math.abs(x)); }
+  w.curve = cv; return w;
+}
+// grave comum a todos: o estigma "acende"
+function brasa(t, f = 55, v = 0.22, dur = 2.6) {
+  const o = osc("sine", f); const g = ganho(0); o.connect(g).connect(master);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.35); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.start(t); o.stop(t + dur + 0.05);
+}
+Object.assign(UMA, {
+  "estigma-Desejo"(t) {
+    // sopro que sobe e um brilho de vidro que oscila, como algo que se quer e não se alcança
+    const n = ruido(); const bp = filtro("bandpass", 300, 5); const g = ganho(0); n.connect(bp).connect(g).connect(master);
+    bp.frequency.setValueAtTime(300, t); bp.frequency.exponentialRampToValueAtTime(3200, t + 1.3);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.16, t + 1.1); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
+    n.start(t); n.stop(t + 1.9);
+    const eco = sala(master, 0.23, 0.4);
+    [523.3, 554.4, 622.3, 830.6].forEach((f, i) => {
+      const t0 = t + 0.9 + i * 0.09; const o = osc("sine", f); const vib = osc("sine", 5 + i); const vg = ganho(f * 0.012); const g2 = ganho(0);
+      vib.connect(vg).connect(o.frequency); o.connect(g2); g2.connect(master); g2.connect(eco);
+      env(g2, t0, 0.04, 0.06, 1.9); o.start(t0); vib.start(t0); o.stop(t0 + 2); vib.stop(t0 + 2);
+    });
+    brasa(t + 0.8, 55, 0.2, 3);
+    return 3.6;
+  },
+  "estigma-Rancor"(t) {
+    // pancada seca e um rosnado distorcido que afunda
+    batida(t + 0.25, 48, 1, 0.5); batida(t + 0.25, 120, 0.5, 0.12);
+    const o = osc("sawtooth", 82); const d = distorcer(60); const lp = filtro("lowpass", 900, 2); const g = ganho(0);
+    o.connect(d).connect(lp).connect(g).connect(master);
+    o.frequency.setValueAtTime(82, t + 0.25); o.frequency.exponentialRampToValueAtTime(41, t + 2);
+    lp.frequency.setValueAtTime(1400, t + 0.25); lp.frequency.exponentialRampToValueAtTime(220, t + 2);
+    env(g, t + 0.25, 0.02, 0.22, 1.9); o.start(t + 0.25); o.stop(t + 2.3);
+    const n = ruido(); const hp = filtro("highpass", 1200); const gn = ganho(0); n.connect(hp).connect(gn).connect(master);
+    env(gn, t + 0.25, 0.003, 0.18, 0.35); n.start(t + 0.25); n.stop(t + 0.7);
+    return 2.6;
+  },
+  "estigma-Culpa"(t) {
+    // um sino grave que dobra devagar e um suspiro que desce
+    const eco = sala(master, 0.31, 0.45);
+    for (const [f, v, dec] of [[98, 0.22, 3.6], [196.8, 0.14, 2.8], [263, 0.09, 2.2], [415, 0.05, 1.4]]) {
+      const o = osc("sine", f); const g = ganho(0); o.connect(g); g.connect(master); g.connect(eco);
+      o.frequency.setValueAtTime(f, t + 0.3); o.frequency.linearRampToValueAtTime(f * 0.97, t + 0.3 + dec);
+      env(g, t + 0.3, 0.008, v, dec); o.start(t + 0.3); o.stop(t + 0.3 + dec + 0.1);
+    }
+    const s = osc("triangle", 440); const lp = filtro("lowpass", 1200); const gs = ganho(0); s.connect(lp).connect(gs); gs.connect(master); gs.connect(eco);
+    s.frequency.setValueAtTime(440, t + 1.2); s.frequency.exponentialRampToValueAtTime(293.7, t + 3);
+    gs.gain.setValueAtTime(0.0001, t + 1.2); gs.gain.linearRampToValueAtTime(0.05, t + 1.6); gs.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
+    s.start(t + 1.2); s.stop(t + 3.3);
+    return 4;
+  },
+  "estigma-Prazer"(t) {
+    // coração acelerando, um acorde quente que abre e uma respiração
+    [0.15, 0.42, 1.05, 1.3, 1.85, 2.08].forEach((k) => batida(t + k, 58, 0.75, 0.2));
+    const lp = filtro("lowpass", 300, 3); const g = ganho(0); lp.connect(g).connect(master);
+    lp.frequency.setValueAtTime(300, t + 0.3); lp.frequency.exponentialRampToValueAtTime(2200, t + 2); lp.frequency.exponentialRampToValueAtTime(500, t + 3.2);
+    g.gain.setValueAtTime(0.0001, t + 0.3); g.gain.linearRampToValueAtTime(0.12, t + 1.6); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.3);
+    for (const f of [220, 277.2, 329.6, 415.3]) { const o = osc("sawtooth", f); const o2 = osc("sawtooth", f * 1.006); o.connect(lp); o2.connect(lp); o.start(t + 0.3); o2.start(t + 0.3); o.stop(t + 3.4); o2.stop(t + 3.4); }
+    const n = ruido(); const bp = filtro("bandpass", 900, 1.5); const gn = ganho(0); n.connect(bp).connect(gn).connect(master);
+    gn.gain.setValueAtTime(0.0001, t + 1.4); gn.gain.linearRampToValueAtTime(0.07, t + 2.1); gn.gain.exponentialRampToValueAtTime(0.0001, t + 2.9);
+    n.start(t + 1.4); n.stop(t + 3);
+    return 3.5;
+  },
+  "estigma-Orgulho"(t) {
+    // metais solenes que sobem e um gongo
+    const lp = filtro("lowpass", 400, 4); const g = ganho(0); lp.connect(g).connect(master);
+    lp.frequency.setValueAtTime(400, t + 0.2); lp.frequency.exponentialRampToValueAtTime(2600, t + 0.9); lp.frequency.exponentialRampToValueAtTime(500, t + 2.6);
+    g.gain.setValueAtTime(0.0001, t + 0.2); g.gain.linearRampToValueAtTime(0.14, t + 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.8);
+    for (const f of [98, 146.8, 196, 293.7]) { const o = osc("sawtooth", f); o.frequency.setValueAtTime(f * 0.94, t + 0.2); o.frequency.linearRampToValueAtTime(f, t + 0.45); o.connect(lp); o.start(t + 0.2); o.stop(t + 2.9); }
+    const eco = sala(master, 0.27, 0.4);
+    for (const [f, v] of [[110, 0.16], [152.4, 0.1], [207, 0.07], [281.6, 0.05], [392.5, 0.03]]) {
+      const o = osc("sine", f); const g2 = ganho(0); o.connect(g2); g2.connect(master); g2.connect(eco);
+      env(g2, t + 0.75, 0.01, v, 3); o.start(t + 0.75); o.stop(t + 3.9);
+    }
+    const n = ruido(); const hp = filtro("highpass", 5000); const gn = ganho(0); n.connect(hp).connect(gn).connect(master);
+    env(gn, t + 0.75, 0.005, 0.06, 1.4); n.start(t + 0.75); n.stop(t + 2.3);
+    return 4;
+  },
+});
 
 export function tocar(nome) {
   const f = UMA[nome]; if (!f) return 0;

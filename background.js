@@ -6,6 +6,7 @@ import OBR from "https://cdn.jsdelivr.net/npm/@owlbear-rodeo/sdk@3.1.0/+esm";
    - em todos: abre a "caixa de som" (som.html), onde os sons tocam de verdade, e avisa quando o cronômetro acaba
    - no mestre: menu do token "Adicionar ao combate"
    - em todos: abre o sussurro que o mestre mandou só para esta pessoa
+   - em todos: mostra a animação do estigma quando o mestre usa a habilidade do Estigma de um sacrifício
    - no mestre: guarda quem leu e quem respondeu aos sussurros */
 
 const NS = "io.github.pebarrosdenashor.mestre-hx";
@@ -45,7 +46,7 @@ async function abrirCaixaDeSom() {
   try {
     const h = await OBR.viewport.getHeight();
     await OBR.popover.open({
-      id: POP, url: new URL("som.html?v=1.9.0", location.href).href, width: 240, height: 52,
+      id: POP, url: new URL("som.html?v=1.10.0", location.href).href, width: 240, height: 52,
       anchorReference: "POSITION", anchorPosition: { left: 72, top: h - 12 },
       anchorOrigin: { horizontal: "LEFT", vertical: "BOTTOM" }, transformOrigin: { horizontal: "LEFT", vertical: "BOTTOM" },
       disableClickAway: true, hidePaper: true,
@@ -57,6 +58,24 @@ let caixaViva = false, meuId = "";
 function vigiarCaixa() { setTimeout(() => { if (!caixaViva) abrirCaixaDeSom(); }, 15000); }
 function tocar(k) { OBR.broadcast.sendMessage(CH, { kind: "som", k }, { destination: "LOCAL" }).catch(() => {}); }
 
+/* ---------- Estigma: animação em tela cheia + som, para todos ---------- */
+const EST_MODAL = NS + "/estigma";
+const EST_OK = ["Desejo", "Rancor", "Culpa", "Prazer", "Orgulho"];
+let estUltimo = 0;
+async function mostrarEstigma(d) {
+  if (!EST_OK.includes(d.e)) return;
+  if (d.n && d.n === estUltimo) return; // mesma mensagem duas vezes
+  estUltimo = d.n || 0;
+  tocar("estigma-" + d.e);
+  try {
+    await OBR.modal.close(EST_MODAL).catch(() => {});
+    await OBR.modal.open({
+      id: EST_MODAL, url: new URL("estigma.html?v=1.10.0", location.href).href + "#d=" + encodeURIComponent(JSON.stringify({ e: d.e, n: d.n })),
+      fullScreen: true, hideBackdrop: true, hidePaper: true, disablePointerEvents: true,
+    });
+  } catch { /* */ }
+}
+
 /* ---------- Sussurros ---------- */
 const SUS_POP = NS + "/sussurro";
 async function abrirSussurro(d) {
@@ -66,7 +85,7 @@ async function abrirSussurro(d) {
     const h = Math.min(420, 110 + linhas * 30 + (d.resp ? 52 : 0));
     await OBR.popover.close(SUS_POP).catch(() => {});
     await OBR.popover.open({
-      id: SUS_POP, url: new URL("sussurro.html?v=1.9.0", location.href).href + "#d=" + encodeURIComponent(JSON.stringify({ sid: d.sid, txt: d.txt, estilo: d.estilo, resp: !!d.resp })),
+      id: SUS_POP, url: new URL("sussurro.html?v=1.10.0", location.href).href + "#d=" + encodeURIComponent(JSON.stringify({ sid: d.sid, txt: d.txt, estilo: d.estilo, resp: !!d.resp })),
       width: Math.min(560, Math.max(320, w - 40)), height: h,
       anchorReference: "POSITION", anchorPosition: { left: Math.round(w / 2), top: 70 },
       anchorOrigin: { horizontal: "CENTER", vertical: "TOP" }, transformOrigin: { horizontal: "CENTER", vertical: "TOP" },
@@ -141,6 +160,7 @@ OBR.onReady(async () => {
     const d = ev.data || {};
     if ((d.kind === "turno" || d.kind === "anuncio") && d.text) OBR.notification.show(d.text);
     if (d.kind === "ouvinte" && d.id === meuId) caixaViva = true;
+    if (d.kind === "estigma" && d.e) mostrarEstigma(d);
     if (d.kind === "sussurro" && Array.isArray(d.para) && d.para.includes(meuId)) abrirSussurro(d);
     if (d.kind === "susLido" && role === "GM" && d.sid) guardarSus(d, "lido");
     if (d.kind === "susResp" && role === "GM" && d.sid) guardarSus(d, "resp");

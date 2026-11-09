@@ -441,3 +441,16 @@ h3 .muted, h3 small { text-transform: none; letter-spacing: 0; font-weight: 400;
 .ccont .hxcc { margin-top: 0; }
 .ccont .hxcv { width: 48px; font-size: 15px; }
 .ccont button { min-width: 26px; padding: 2px 6px; }
+
+/* ---------- Habilidade do Estigma ---------- */
+.estcfg { margin-top: 8px; padding: 8px; border: 1px solid #6b1420; border-radius: 8px; background: linear-gradient(180deg, #2a070c, #1a0508); }
+.estcfg .row { margin-top: 6px; }
+.estcfg .row:first-child { margin-top: 0; }
+.estt { color: #ff5a63; font-size: 12px; letter-spacing: .06em; text-shadow: 0 0 8px #e0141f88; }
+button.est { background: #8e0f1b; border-color: #e0141f; color: #fff; font-weight: 600; box-shadow: 0 0 10px #e0141f55; }
+button.est:hover { background: #b0121f; box-shadow: 0 0 16px #e0141f99; }
+.estbtn { display: inline-grid; place-items: center; width: 22px; height: 22px; padding: 0; margin-left: 4px; vertical-align: middle; border-radius: 50%;
+  background: #8e0f1b; border: 1px solid #e0141f; color: #fff; font-size: 12px; line-height: 1; box-shadow: 0 0 8px #e0141f88; }
+.estbtn:hover { background: #c8121f; box-shadow: 0 0 14px #ff2a35; }
+li.esthab { color: #ffc2c6; }
+li.esthab::marker { content: "✠ "; color: #ff3b45; }
