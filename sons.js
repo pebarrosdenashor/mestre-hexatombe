@@ -249,86 +249,130 @@ const UMA = {
   },
 };
 
-/* ---------- Estigmas dos sacrifícios (tocam junto com a animação) ---------- */
+/* ---------- Estigmas dos sacrifícios (tocam junto com a animação) ----------
+   Todos seguem a mesma forma: um puxão de ar que carrega (≈0,3 s), a explosão de poder
+   (grave que afunda, estouro distorcido, rugido) e uma cauda com a cor de cada estigma. */
 function distorcer(k = 40) {
-  const w = ac().createWaveShaper(); const n = 1024; const cv = new Float32Array(n);
+  const w = ac().createWaveShaper(); const n = 2048; const cv = new Float32Array(n);
   for (let i = 0; i < n; i++) { const x = (i * 2) / n - 1; cv[i] = ((3 + k) * x * 20 * Math.PI / 180) / (Math.PI + k * Math.abs(x)); }
-  w.curve = cv; return w;
+  w.curve = cv; w.oversample = "4x"; return w;
 }
-// grave comum a todos: o estigma "acende"
-function brasa(t, f = 55, v = 0.22, dur = 2.6) {
-  const o = osc("sine", f); const g = ganho(0); o.connect(g).connect(master);
-  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.35); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.start(t); o.stop(t + dur + 0.05);
+// eco grande de caverna, gerado na hora
+let caverna = null;
+function grandeSala() {
+  const c = ac();
+  if (!caverna) {
+    const len = Math.floor(c.sampleRate * 2.8); const ir = c.createBuffer(2, len, c.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+    const cv = c.createConvolver(); cv.buffer = ir; const g = ganho(0.55); cv.connect(g).connect(master); caverna = cv;
+  }
+  return caverna;
+}
+// tudo do estigma passa por aqui: deixa alto sem estourar
+function barramento() {
+  const c = ac(); const comp = c.createDynamicsCompressor();
+  comp.threshold.value = -16; comp.knee.value = 6; comp.ratio.value = 6; comp.attack.value = 0.003; comp.release.value = 0.25;
+  const g = ganho(1.15); comp.connect(g); g.connect(master); g.connect(grandeSala()); return comp;
+}
+const IMP = 0.3; // momento da explosão (a animação bate junto)
+function surto(t, bus, { grave = 62, rugido = 55, forca = 1 } = {}) {
+  const ti = t + IMP;
+  // 1) carga: ar sugado para dentro, subindo
+  const n = ruido(); const hp = filtro("bandpass", 400, 1.2); const gn = ganho(0); n.connect(hp).connect(gn).connect(bus);
+  hp.frequency.setValueAtTime(300, t); hp.frequency.exponentialRampToValueAtTime(5000, ti);
+  gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(0.5 * forca, ti - 0.01); gn.gain.linearRampToValueAtTime(0.0001, ti + 0.02);
+  n.start(t); n.stop(ti + 0.05);
+  const sb = osc("sawtooth", 60); const sbl = filtro("lowpass", 800); const sg = ganho(0); sb.connect(sbl).connect(sg).connect(bus);
+  sb.frequency.setValueAtTime(40, t); sb.frequency.exponentialRampToValueAtTime(220, ti);
+  sg.gain.setValueAtTime(0.0001, t); sg.gain.exponentialRampToValueAtTime(0.18 * forca, ti - 0.01); sg.gain.linearRampToValueAtTime(0.0001, ti + 0.02);
+  sb.start(t); sb.stop(ti + 0.05);
+  // 2) explosão: grave que afunda
+  const sub = osc("sine", grave); const gs = ganho(0); sub.connect(gs).connect(bus);
+  sub.frequency.setValueAtTime(grave * 1.6, ti); sub.frequency.exponentialRampToValueAtTime(grave * 0.42, ti + 1.4);
+  gs.gain.setValueAtTime(0.0001, ti); gs.gain.exponentialRampToValueAtTime(0.95 * forca, ti + 0.01); gs.gain.exponentialRampToValueAtTime(0.0001, ti + 1.7);
+  sub.start(ti); sub.stop(ti + 1.8);
+  // estouro distorcido
+  const nb = ruido(); const dz = distorcer(80); const lp = filtro("lowpass", 6000, 0.7); const gb = ganho(0); nb.connect(dz).connect(lp).connect(gb).connect(bus);
+  lp.frequency.setValueAtTime(7000, ti); lp.frequency.exponentialRampToValueAtTime(180, ti + 1.1);
+  gb.gain.setValueAtTime(0.0001, ti); gb.gain.exponentialRampToValueAtTime(0.55 * forca, ti + 0.006); gb.gain.exponentialRampToValueAtTime(0.0001, ti + 1.2);
+  nb.start(ti); nb.stop(ti + 1.3);
+  // rugido: serra grave distorcida que treme
+  for (const [f, v] of [[rugido, 0.3], [rugido * 1.5, 0.16], [rugido * 1.012, 0.2]]) {
+    const o = osc("sawtooth", f); const tr = osc("sine", 7.5); const tg = ganho(f * 0.03); const d = distorcer(50); const l = filtro("lowpass", 1600, 1.5); const g = ganho(0);
+    tr.connect(tg).connect(o.frequency); o.connect(d).connect(l).connect(g).connect(bus);
+    o.frequency.setValueAtTime(f * 1.25, ti); o.frequency.exponentialRampToValueAtTime(f * 0.8, ti + 1.6);
+    l.frequency.setValueAtTime(2400, ti); l.frequency.exponentialRampToValueAtTime(300, ti + 1.6);
+    g.gain.setValueAtTime(0.0001, ti); g.gain.exponentialRampToValueAtTime(v * forca, ti + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, ti + 1.8);
+    o.start(ti); tr.start(ti); o.stop(ti + 1.9); tr.stop(ti + 1.9);
+  }
+  return ti;
 }
 Object.assign(UMA, {
   "estigma-Desejo"(t) {
-    // sopro que sobe e um brilho de vidro que oscila, como algo que se quer e não se alcança
-    const n = ruido(); const bp = filtro("bandpass", 300, 5); const g = ganho(0); n.connect(bp).connect(g).connect(master);
-    bp.frequency.setValueAtTime(300, t); bp.frequency.exponentialRampToValueAtTime(3200, t + 1.3);
-    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.16, t + 1.1); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
-    n.start(t); n.stop(t + 1.9);
-    const eco = sala(master, 0.23, 0.4);
-    [523.3, 554.4, 622.3, 830.6].forEach((f, i) => {
-      const t0 = t + 0.9 + i * 0.09; const o = osc("sine", f); const vib = osc("sine", 5 + i); const vg = ganho(f * 0.012); const g2 = ganho(0);
-      vib.connect(vg).connect(o.frequency); o.connect(g2); g2.connect(master); g2.connect(eco);
-      env(g2, t0, 0.04, 0.06, 1.9); o.start(t0); vib.start(t0); o.stop(t0 + 2); vib.stop(t0 + 2);
+    // explosão + um enxame de vozes de vidro que sobe e não para de querer mais
+    const bus = barramento(); const ti = surto(t, bus, { grave: 58, rugido: 52 });
+    [622.3, 659.3, 739.9, 830.6, 880, 987.8].forEach((f, i) => {
+      const o = osc("sawtooth", f); const bp = filtro("bandpass", f * 2, 8); const vib = osc("sine", 6 + i * 0.7); const vg = ganho(f * 0.02); const g = ganho(0);
+      vib.connect(vg).connect(o.frequency); o.connect(bp).connect(g).connect(bus);
+      o.frequency.setValueAtTime(f, ti + 0.05); o.frequency.exponentialRampToValueAtTime(f * 1.5, ti + 1.8);
+      g.gain.setValueAtTime(0.0001, ti + 0.05); g.gain.exponentialRampToValueAtTime(0.09, ti + 0.25); g.gain.exponentialRampToValueAtTime(0.0001, ti + 1.9);
+      o.start(ti + 0.05); vib.start(ti + 0.05); o.stop(ti + 2); vib.stop(ti + 2);
     });
-    brasa(t + 0.8, 55, 0.2, 3);
-    return 3.6;
+    const n = ruido(); const bp = filtro("bandpass", 2500, 3); const lfo = osc("sine", 3); const lg = ganho(1800); const g = ganho(0);
+    lfo.connect(lg).connect(bp.frequency); n.connect(bp).connect(g).connect(bus); env(g, ti + 0.1, 0.2, 0.25, 1.4); n.start(ti + 0.1); lfo.start(ti + 0.1); n.stop(ti + 1.8); lfo.stop(ti + 1.8);
+    return 3.2;
   },
   "estigma-Rancor"(t) {
-    // pancada seca e um rosnado distorcido que afunda
-    batida(t + 0.25, 48, 1, 0.5); batida(t + 0.25, 120, 0.5, 0.12);
-    const o = osc("sawtooth", 82); const d = distorcer(60); const lp = filtro("lowpass", 900, 2); const g = ganho(0);
-    o.connect(d).connect(lp).connect(g).connect(master);
-    o.frequency.setValueAtTime(82, t + 0.25); o.frequency.exponentialRampToValueAtTime(41, t + 2);
-    lp.frequency.setValueAtTime(1400, t + 0.25); lp.frequency.exponentialRampToValueAtTime(220, t + 2);
-    env(g, t + 0.25, 0.02, 0.22, 1.9); o.start(t + 0.25); o.stop(t + 2.3);
-    const n = ruido(); const hp = filtro("highpass", 1200); const gn = ganho(0); n.connect(hp).connect(gn).connect(master);
-    env(gn, t + 0.25, 0.003, 0.18, 0.35); n.start(t + 0.25); n.stop(t + 0.7);
-    return 2.6;
+    // a mais bruta: duas pancadas, rugido no máximo e metal raspando
+    const bus = barramento(); const ti = surto(t, bus, { grave: 52, rugido: 41, forca: 1.15 });
+    batida(ti + 0.22, 45, 1, 0.5, bus); batida(ti + 0.22, 140, 0.6, 0.1, bus);
+    const m = osc("square", 1900); const bp = filtro("bandpass", 2600, 14); const g = ganho(0); const d = distorcer(30);
+    m.connect(d).connect(bp).connect(g).connect(bus);
+    m.frequency.setValueAtTime(1900, ti); m.frequency.exponentialRampToValueAtTime(700, ti + 1.2);
+    env(g, ti, 0.01, 0.14, 1.2); m.start(ti); m.stop(ti + 1.3);
+    for (let k = 0; k < 14; k++) { const t0 = ti + Math.random() * 0.9; const n = ruido(); const h = filtro("highpass", 3000 + Math.random() * 4000); const gg = ganho(0); n.connect(h).connect(gg).connect(bus); env(gg, t0, 0.001, 0.25, 0.04); n.start(t0); n.stop(t0 + 0.06); }
+    return 3;
   },
   "estigma-Culpa"(t) {
-    // um sino grave que dobra devagar e um suspiro que desce
-    const eco = sala(master, 0.31, 0.45);
-    for (const [f, v, dec] of [[98, 0.22, 3.6], [196.8, 0.14, 2.8], [263, 0.09, 2.2], [415, 0.05, 1.4]]) {
-      const o = osc("sine", f); const g = ganho(0); o.connect(g); g.connect(master); g.connect(eco);
-      o.frequency.setValueAtTime(f, t + 0.3); o.frequency.linearRampToValueAtTime(f * 0.97, t + 0.3 + dec);
-      env(g, t + 0.3, 0.008, v, dec); o.start(t + 0.3); o.stop(t + 0.3 + dec + 0.1);
+    // explosão abafada que vira um sino enorme e um coro que afunda
+    const bus = barramento(); const ti = surto(t, bus, { grave: 48, rugido: 46, forca: 0.95 });
+    for (const [f, v, dec] of [[73.4, 0.45, 3.2], [146.8 * 1.01, 0.22, 2.6], [196, 0.15, 2.2], [277.2, 0.1, 1.8], [349.2 * 1.02, 0.06, 1.4]]) {
+      const o = osc("sine", f); const g = ganho(0); o.connect(g).connect(bus);
+      o.frequency.setValueAtTime(f, ti); o.frequency.linearRampToValueAtTime(f * 0.94, ti + dec);
+      env(g, ti, 0.005, v, dec); o.start(ti); o.stop(ti + dec + 0.1);
     }
-    const s = osc("triangle", 440); const lp = filtro("lowpass", 1200); const gs = ganho(0); s.connect(lp).connect(gs); gs.connect(master); gs.connect(eco);
-    s.frequency.setValueAtTime(440, t + 1.2); s.frequency.exponentialRampToValueAtTime(293.7, t + 3);
-    gs.gain.setValueAtTime(0.0001, t + 1.2); gs.gain.linearRampToValueAtTime(0.05, t + 1.6); gs.gain.exponentialRampToValueAtTime(0.0001, t + 3.2);
-    s.start(t + 1.2); s.stop(t + 3.3);
-    return 4;
+    for (const f of [220, 261.6, 311.1, 233.1]) {
+      const o = osc("sawtooth", f); const o2 = osc("sawtooth", f * 1.008); const lp = filtro("lowpass", 900, 1); const g = ganho(0);
+      o.connect(lp); o2.connect(lp); lp.connect(g).connect(bus);
+      o.frequency.setValueAtTime(f, ti + 0.2); o.frequency.exponentialRampToValueAtTime(f * 0.7, ti + 2.4); o2.frequency.setValueAtTime(f * 1.008, ti + 0.2); o2.frequency.exponentialRampToValueAtTime(f * 0.7, ti + 2.4);
+      g.gain.setValueAtTime(0.0001, ti + 0.2); g.gain.linearRampToValueAtTime(0.06, ti + 0.6); g.gain.exponentialRampToValueAtTime(0.0001, ti + 2.6);
+      o.start(ti + 0.2); o2.start(ti + 0.2); o.stop(ti + 2.7); o2.stop(ti + 2.7);
+    }
+    return 3.6;
   },
   "estigma-Prazer"(t) {
-    // coração acelerando, um acorde quente que abre e uma respiração
-    [0.15, 0.42, 1.05, 1.3, 1.85, 2.08].forEach((k) => batida(t + k, 58, 0.75, 0.2));
-    const lp = filtro("lowpass", 300, 3); const g = ganho(0); lp.connect(g).connect(master);
-    lp.frequency.setValueAtTime(300, t + 0.3); lp.frequency.exponentialRampToValueAtTime(2200, t + 2); lp.frequency.exponentialRampToValueAtTime(500, t + 3.2);
-    g.gain.setValueAtTime(0.0001, t + 0.3); g.gain.linearRampToValueAtTime(0.12, t + 1.6); g.gain.exponentialRampToValueAtTime(0.0001, t + 3.3);
-    for (const f of [220, 277.2, 329.6, 415.3]) { const o = osc("sawtooth", f); const o2 = osc("sawtooth", f * 1.006); o.connect(lp); o2.connect(lp); o.start(t + 0.3); o2.start(t + 0.3); o.stop(t + 3.4); o2.stop(t + 3.4); }
-    const n = ruido(); const bp = filtro("bandpass", 900, 1.5); const gn = ganho(0); n.connect(bp).connect(gn).connect(master);
-    gn.gain.setValueAtTime(0.0001, t + 1.4); gn.gain.linearRampToValueAtTime(0.07, t + 2.1); gn.gain.exponentialRampToValueAtTime(0.0001, t + 2.9);
-    n.start(t + 1.4); n.stop(t + 3);
-    return 3.5;
+    // o coração dispara antes e depois da explosão; um acorde doce e podre se abre
+    const bus = barramento();
+    [0, 0.12, 0.2, 0.26].forEach((k) => batida(t + k, 55, 0.7, 0.12, bus));
+    const ti = surto(t, bus, { grave: 60, rugido: 49 });
+    [0.35, 0.53, 0.72, 0.88, 1.08, 1.22, 1.42, 1.55].forEach((k) => batida(ti + k, 52, 0.85, 0.16, bus));
+    const lp = filtro("lowpass", 400, 4); const g = ganho(0); lp.connect(g).connect(bus);
+    lp.frequency.setValueAtTime(400, ti); lp.frequency.exponentialRampToValueAtTime(3200, ti + 0.6); lp.frequency.exponentialRampToValueAtTime(500, ti + 2.2);
+    g.gain.setValueAtTime(0.0001, ti); g.gain.exponentialRampToValueAtTime(0.16, ti + 0.15); g.gain.exponentialRampToValueAtTime(0.0001, ti + 2.4);
+    for (const f of [220, 277.2, 329.6, 415.3, 466.2]) { for (const dt of [1, 1.011]) { const o = osc("sawtooth", f * dt); o.connect(lp); o.start(ti); o.stop(ti + 2.5); } }
+    return 3.1;
   },
   "estigma-Orgulho"(t) {
-    // metais solenes que sobem e um gongo
-    const lp = filtro("lowpass", 400, 4); const g = ganho(0); lp.connect(g).connect(master);
-    lp.frequency.setValueAtTime(400, t + 0.2); lp.frequency.exponentialRampToValueAtTime(2600, t + 0.9); lp.frequency.exponentialRampToValueAtTime(500, t + 2.6);
-    g.gain.setValueAtTime(0.0001, t + 0.2); g.gain.linearRampToValueAtTime(0.14, t + 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.8);
-    for (const f of [98, 146.8, 196, 293.7]) { const o = osc("sawtooth", f); o.frequency.setValueAtTime(f * 0.94, t + 0.2); o.frequency.linearRampToValueAtTime(f, t + 0.45); o.connect(lp); o.start(t + 0.2); o.stop(t + 2.9); }
-    const eco = sala(master, 0.27, 0.4);
-    for (const [f, v] of [[110, 0.16], [152.4, 0.1], [207, 0.07], [281.6, 0.05], [392.5, 0.03]]) {
-      const o = osc("sine", f); const g2 = ganho(0); o.connect(g2); g2.connect(master); g2.connect(eco);
-      env(g2, t + 0.75, 0.01, v, 3); o.start(t + 0.75); o.stop(t + 3.9);
+    // explosão que vira um acorde de metais rasgado, solene, e um gongo enorme
+    const bus = barramento(); const ti = surto(t, bus, { grave: 55, rugido: 49 });
+    const lp = filtro("lowpass", 600, 3); const g = ganho(0); const d = distorcer(18); d.connect(lp).connect(g).connect(bus);
+    lp.frequency.setValueAtTime(600, ti); lp.frequency.exponentialRampToValueAtTime(3500, ti + 0.25); lp.frequency.exponentialRampToValueAtTime(700, ti + 2.4);
+    g.gain.setValueAtTime(0.0001, ti); g.gain.exponentialRampToValueAtTime(0.22, ti + 0.06); g.gain.exponentialRampToValueAtTime(0.0001, ti + 2.6);
+    for (const f of [73.4, 110, 146.8, 220, 293.7]) { const o = osc("sawtooth", f); o.frequency.setValueAtTime(f * 0.97, ti); o.frequency.linearRampToValueAtTime(f, ti + 0.15); o.connect(d); o.start(ti); o.stop(ti + 2.7); }
+    for (const [f, v] of [[82.4, 0.3], [113.6, 0.18], [152.4, 0.12], [207, 0.08], [281.6, 0.06]]) {
+      const o = osc("sine", f); const gg = ganho(0); o.connect(gg).connect(bus); env(gg, ti + 0.05, 0.01, v, 3); o.start(ti + 0.05); o.stop(ti + 3.2);
     }
-    const n = ruido(); const hp = filtro("highpass", 5000); const gn = ganho(0); n.connect(hp).connect(gn).connect(master);
-    env(gn, t + 0.75, 0.005, 0.06, 1.4); n.start(t + 0.75); n.stop(t + 2.3);
-    return 4;
+    return 3.5;
   },
 });
 

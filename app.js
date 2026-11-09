@@ -1,10 +1,10 @@
 import OBR, { buildShape } from "https://cdn.jsdelivr.net/npm/@owlbear-rodeo/sdk@3.1.0/+esm";
-import { CONDICOES, ESTIGMAS, BESTIARIO } from "./dados.js?v=1.10.0";
-import * as PM from "./prato-mestre.js?v=1.10.0";
-import { EFEITOS, AMBIENTES, tocar as tocarLocal, tocarUrl as tocarUrlLocal, setVolume as setVolLocal } from "./sons.js?v=1.10.0";
-import { gerarEquipe, outroMembro, outraHistoriaEquipe, equipeTexto, membroTexto, NEXS, TEMAS, COMPOSICOES } from "./equipe.js?v=1.10.0";
-import { gerarNpc, VDS, TIPOS, PAPEIS, TRACOS, aplicarTraco, outrasHabilidades, outraHistoria, outroNome, loreTexto } from "./gerador.js?v=1.10.0";
-import { gerarEncontro, cenaEncontro, outroGrupo, encontroTexto, TEMAS_ENC, DIFICULDADES, ELEMENTOS_ENC, PAPEL_NOME } from "./encontro.js?v=1.10.0";
+import { CONDICOES, ESTIGMAS, BESTIARIO } from "./dados.js?v=1.11.0";
+import * as PM from "./prato-mestre.js?v=1.11.0";
+import { EFEITOS, AMBIENTES, tocar as tocarLocal, tocarUrl as tocarUrlLocal, setVolume as setVolLocal } from "./sons.js?v=1.11.0";
+import { gerarEquipe, outroMembro, outraHistoriaEquipe, equipeTexto, membroTexto, NEXS, TEMAS, COMPOSICOES } from "./equipe.js?v=1.11.0";
+import { gerarNpc, VDS, TIPOS, PAPEIS, TRACOS, aplicarTraco, outrasHabilidades, outraHistoria, outroNome, loreTexto } from "./gerador.js?v=1.11.0";
+import { gerarEncontro, cenaEncontro, outroGrupo, encontroTexto, TEMAS_ENC, DIFICULDADES, ELEMENTOS_ENC, PAPEL_NOME } from "./encontro.js?v=1.11.0";
 
 /* =========================================================
    Escudo do Mestre — Hexatombe (Owlbear Rodeo)
@@ -377,48 +377,72 @@ function cHx(e, h) {
   return null;
 }
 /* ---------- Habilidade do Estigma (NPCs sacrifício) ----------
-   O mestre escolhe o estigma do sacrifício e qual habilidade dele é a "do Estigma".
-   Fica guardado pelo nome da criatura, então volta igual quando o NPC entra em outro combate.
-   Ao usar, todos da sala veem a animação do estigma e ouvem o som (background.js → estigma.html). */
+   A habilidade do Estigma é marcada na ficha do NPC, na extensão do Hexatombe (✎ → "✠ Estigma").
+   Aqui, ao usar essa habilidade, todos da sala veem a animação do estigma e ouvem o som (background.js → estigma.html).
+   Para NPCs que não estão no Hexatombe, dá para escolher aqui mesmo; fica guardado pelo nome. */
 const EST_NPC = ESTIGMAS.map((x) => x.nome).filter((n) => n !== "Obsessão"); // a Obsessão é do jogador
 const estArt = (n) => (n === "Culpa" ? "da" : "do");
-function estChave(e) { return String(e.cri?.nome || e.nome || "").replace(/\s+\d+$/, "").trim().toLowerCase(); }
+const baseNome = (n) => String(n || "").replace(/\s+\d+$/, "").trim().toLowerCase();
+function estChave(e) { return baseNome(e.cri?.nome || e.nome); }
 function habNome(h) { const m = /^([^:(]{2,40}(?: \([^)]*\))?):\s/.exec(String(h)); return (m ? m[1] : String(h).slice(0, 40)).trim(); }
-// estigma do integrante do Hexatombe com o mesmo nome (sugestão automática)
-function estSacDe(e, h) {
+// a ficha do NPC no Hexatombe (pelo nome da criatura)
+function criHexa(e, h) {
+  if (!h || e.sheetId) return null;
+  const nomes = [e.cri?.nome, e.nome].map(baseNome).filter(Boolean);
+  return (h.bestiario || []).find((c) => nomes.includes(baseNome(c.nome))) || null;
+}
+// habilidades do NPC: da ficha do Hexatombe (sempre atual) ou do que veio no combate
+function habsDe(e, h) {
+  const c = criHexa(e, h);
+  if (c && Array.isArray(c.habs) && c.habs.length) return c.habs.map((x) => ({ nome: (x.nome || habNome(x.desc)).trim(), desc: String(x.desc || ""), est: !!x.est, ficha: true }));
+  return (e.cri?.hab || []).map((t) => { const m = /^([^:(]{2,40}(?: \([^)]*\))?):\s(.*)$/s.exec(String(t)); return { nome: m ? m[1].trim() : habNome(t), desc: m ? m[2] : String(t), est: false }; });
+}
+// estigma do integrante do Hexatombe (pelo NPC da ficha ou pelo nome)
+function estSacDe(e, h, c) {
   if (!h) return "";
-  const nomes = [e.cri?.nome, e.nome, String(e.nome || "").replace(/\s+\d+$/, "")].filter(Boolean).map((n) => n.trim().toLowerCase());
-  for (const t of h.equipes) for (const m of t.membros || []) if (m.sac && EST_NPC.includes(m.sac) && nomes.includes(hxMemberName(m, h).trim().toLowerCase())) return m.sac;
+  const nomes = [e.cri?.nome, e.nome].map(baseNome).filter(Boolean);
+  for (const t of h.equipes) for (const m of t.membros || []) {
+    if (!m.sac || !EST_NPC.includes(m.sac)) continue;
+    if ((c && m.npcId === c.id) || nomes.includes(baseNome(hxMemberName(m, h)))) return m.sac;
+  }
   return "";
 }
+// { est, hab, origem }: o que foi escolhido aqui vale mais; senão, o que está na ficha do Hexatombe
 function estDe(e, h) {
-  const c = mine.estNpc[estChave(e)] || {};
-  return { est: "est" in c ? c.est : estSacDe(e, h), hab: c.hab || "" };
+  const cfg = mine.estNpc[estChave(e)] || {}; const c = criHexa(e, h); const habs = habsDe(e, h);
+  const habFicha = habs.find((x) => x.est)?.nome || "";
+  const estFicha = EST_NPC.includes(c?.estigma) ? c.estigma : estSacDe(e, h, c);
+  return { est: EST_NPC.includes(cfg.est) ? cfg.est : estFicha, hab: cfg.hab || habFicha, estFicha, habFicha, ficha: !!c };
 }
 function estConf(e) { return (mine.estNpc[estChave(e)] ||= {}); }
+function habEhEstigma(x, hb) { return !!x.est && !!x.hab && baseNome(hb.nome) === baseNome(x.hab); }
 function estigmaUI(e, h) {
-  const x = estDe(e, h); const habs = (e.cri?.hab || []).map(habNome);
-  const outra = ui.estOutra?.[e.id] || (x.hab && !habs.includes(x.hab));
-  return `<div class="estcfg"><div class="row between"><b class="estt">✠ Habilidade do Estigma</b><span class="muted small">${x.est ? `Estigma ${estArt(x.est)} ${esc(x.est)}` : "não é sacrifício"}</span></div>
-    <div class="row wrap"><select data-cest="${e.id}" title="Estigma deste sacrifício"><option value="">— sem estigma —</option>${EST_NPC.map((n) => `<option ${x.est === n ? "selected" : ""}>${esc(n)}</option>`).join("")}</select>
-      ${x.est ? `<select data-chab="${e.id}" title="Qual habilidade é a do Estigma"><option value="">qual habilidade…</option>${habs.map((n) => `<option ${!outra && x.hab === n ? "selected" : ""}>${esc(n)}</option>`).join("")}<option value="__outra" ${outra ? "selected" : ""}>✎ Outra (digitar)</option></select>
-      ${outra ? `<input data-chabtxt="${e.id}" value="${esc(x.hab)}" placeholder="Nome da habilidade" maxlength="60">` : ""}` : ""}</div>
+  const x = estDe(e, h); const habs = habsDe(e, h).map((hb) => hb.nome).filter(Boolean);
+  const cfg = mine.estNpc[estChave(e)] || {};
+  const outra = ui.estOutra?.[e.id] || (cfg.hab && !habs.some((n) => baseNome(n) === baseNome(cfg.hab)));
+  const deFicha = x.ficha && x.habFicha && !cfg.hab;
+  return `<div class="estcfg"><div class="row between"><b class="estt">✠ Habilidade do Estigma</b><span class="muted small">${x.est ? `Estigma ${estArt(x.est)} ${esc(x.est)}` : "sem estigma"}</span></div>
+    <div class="row wrap"><select data-cest="${e.id}" title="Estigma deste sacrifício"><option value="">${x.estFicha ? `Da ficha: ${esc(x.estFicha)}` : "— sem estigma —"}</option>${EST_NPC.map((n) => `<option ${cfg.est === n ? "selected" : ""}>${esc(n)}</option>`).join("")}</select>
+      ${x.est ? `<select data-chab="${e.id}" title="Qual habilidade é a do Estigma"><option value="">${x.habFicha ? `Da ficha: ${esc(x.habFicha)}` : "qual habilidade…"}</option>${habs.map((n) => `<option ${!outra && cfg.hab && baseNome(cfg.hab) === baseNome(n) ? "selected" : ""}>${esc(n)}</option>`).join("")}<option value="__outra" ${outra ? "selected" : ""}>✎ Outra (digitar)</option></select>
+      ${outra ? `<input data-chabtxt="${e.id}" value="${esc(cfg.hab || "")}" placeholder="Nome da habilidade" maxlength="60">` : ""}` : ""}</div>
     ${x.est ? `<div class="row wrap"><button class="est" data-a="cEstUsar" data-id="${e.id}">✠ Usar${x.hab ? `: ${esc(x.hab)}` : " a habilidade do Estigma"}</button><button class="ghost" data-a="cEstPrev" data-id="${e.id}" title="Ver a animação só na sua tela">👁 Prévia</button></div>
-      <p class="muted small">Todos na sala veem o estigma ${estArt(x.est)} ${esc(x.est)} na tela e ouvem o som. O nome do NPC e da habilidade não aparecem para eles.</p>` : ""}</div>`;
+      <p class="muted small">${deFicha ? "Marcada na ficha do Hexatombe. " : ""}Usar esta habilidade (aqui ou na lista de habilidades) mostra o estigma na tela de todos, com o som. O nome do NPC e da habilidade não aparecem para eles.</p>`
+      : `<p class="muted small">${x.ficha ? "Marque o sacrifício na equipe ou escolha o estigma na ficha do Hexatombe (✎)." : "Escolha o estigma se este NPC for um sacrifício."}</p>`}</div>`;
 }
 const EST_MODAL = NS + "/estigma";
 function previaEstigma(est) {
   if (!EST_NPC.includes(est)) return;
-  tocarLocal("estigma-" + est);
-  if (!obrOk) return toast("Abra dentro do Owlbear para ver a animação.");
-  const url = new URL("estigma.html?v=1.10.0", location.href).href + "#d=" + encodeURIComponent(JSON.stringify({ e: est, n: Date.now() }));
+  if (!obrOk) { tocarLocal("estigma-" + est); return toast("Abra dentro do Owlbear para ver a animação."); }
+  // na prévia o som toca aqui (só para você); a animação vem com "mudo" para não tocar de novo na caixa de som
+  setTimeout(() => tocarLocal("estigma-" + est), 250);
+  const url = new URL("estigma.html?v=1.11.0", location.href).href + "#d=" + encodeURIComponent(JSON.stringify({ e: est, n: Date.now(), mudo: true }));
   OBR.modal.close(EST_MODAL).catch(() => {}).finally(() => OBR.modal.open({ id: EST_MODAL, url, fullScreen: true, hideBackdrop: true, hidePaper: true, disablePointerEvents: true }).catch(() => {}));
 }
-function usarEstigma(e) {
+function usarEstigma(e, habUsada) {
   const x = estDe(e, hx()); if (!x.est) return toast("Escolha o estigma deste sacrifício primeiro.");
   if (Date.now() - (ui.estAt || 0) < 2000) return; // clique duplo
   ui.estAt = Date.now();
-  addLog(`✠ ${cNome(e)} usou ${x.hab || "a habilidade do Estigma"} (Estigma ${estArt(x.est)} ${x.est})`);
+  addLog(`✠ ${cNome(e)} usou ${habUsada || x.hab || "a habilidade do Estigma"} (Estigma ${estArt(x.est)} ${x.est})`);
   if (ui.previa || !obrOk) { previaEstigma(x.est); return toast("Modo prévia: só você viu."); }
   OBR.broadcast.sendMessage(CH, { kind: "estigma", e: x.est, n: Date.now() }, { destination: "ALL" })
     .then(() => toast(`✠ Estigma ${estArt(x.est)} ${x.est} na tela de todos.`))
@@ -567,7 +591,9 @@ function viewCombate() {
           ${(cri.extra || []).map((a) => `<button class="atk" data-a="cExtra" data-id="${e.id}" data-e="${esc(a[1])}" data-n="${esc(a[0])}"><b>${esc(a[0])}</b> <span>${esc(a[1])}</span></button>`).join("")}
           <div class="row wrap">${["Fortitude", "Reflexos", "Vontade"].map((r) => `<button data-a="cRes" data-id="${e.id}" data-r="${r}">${r} ${esc(cri.res?.[r] || "1d20")}</button>`).join("")}<button data-a="cRes" data-id="${e.id}" data-r="Percepção">Percepção ${esc(cri.per || "1d20")}</button></div>
           ${cri.attrs ? `<p class="small muted">${esc(cri.attrs)}</p>` : ""}
-          ${(cri.hab || []).length ? `<details><summary>Habilidades</summary><ul class="small">${cri.hab.map((hb) => `<li class="${estX(e).est && estX(e).hab === habNome(hb) ? "esthab" : ""}">${habHTML(hb)}</li>`).join("")}</ul></details>` : ""}
+          ${(() => { const hs = habsDe(e, h); if (!hs.length) return ""; const x = estX(e);
+            return `<details ${x.est && x.hab ? "open" : ""}><summary>Habilidades</summary><ul class="small habsuse">${hs.map((hb, hi) => { const est = habEhEstigma(x, hb);
+              return `<li class="${est ? "esthab" : ""}"><span>${hb.nome ? `<b>${esc(hb.nome)}:</b> ` : ""}${esc(hb.desc)}</span><button class="${est ? "est" : "ghost"} small husar" data-a="cHab" data-id="${e.id}" data-i="${hi}" title="${est ? `Usar: todos veem o estigma ${estArt(x.est)} ${esc(x.est)}` : "Usar (fica no registro)"}">${est ? "✠ Usar" : "▶ Usar"}</button></li>`; }).join("")}</ul></details>`; })()}
           ${cri.lore ? `<details><summary>História</summary><ul class="small lore">${loreTexto(cri.lore).map((t) => `<li>${esc(t)}</li>`).join("")}</ul></details>` : ""}
           ${cri.pp ? `<p class="small"><b>Presença perturbadora:</b> ${esc(cri.pp)}</p>` : ""}</div>` : ""}
         ${e.sheetId ? "" : estigmaUI(e, h)}
@@ -1225,6 +1251,12 @@ $app.addEventListener("click", async (ev) => {
       return render();
     }
     case "cEstUsar": { const e = findC(id); if (!e) return; usarEstigma(e); return render(); }
+    case "cHab": { // usar uma habilidade: se for a do Estigma, a animação sai sozinha
+      const e = findC(id); if (!e) return; const h = hx(); const hb = habsDe(e, h)[num(b.dataset.i)]; if (!hb) return;
+      const x = estDe(e, h);
+      if (habEhEstigma(x, hb)) usarEstigma(e, hb.nome);
+      else addLog(`${cNome(e)} usou ${hb.nome || "uma habilidade"}`);
+      ui.cRes = { id, txt: `${hb.nome ? `${hb.nome}: ` : ""}${hb.desc}` }; return render(); }
     case "cEstPrev": { const e = findC(id); if (!e) return; const x = estDe(e, hx()); if (x.est) previaEstigma(x.est); return; }
     case "estPrev": return previaEstigma(b.dataset.e);
     case "cAplicar": { const e = findC(id); if (!e) return; danoC(e, num(b.dataset.v)); ui.cRes = null; return render(); }

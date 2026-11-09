@@ -132,3 +132,8 @@ Arquivos novos: `sussurro.html` e `sussurro.js`. Suba os dois junto com os outro
 - **✠ Usar:** a tela de todos na sala mostra o símbolo do estigma em vermelho, com brilho, por uns 4 segundos, e toca um som próprio de cada estigma. Os jogadores não veem o nome do NPC nem da habilidade. O uso fica no seu registro de rolagens. Também dá para usar pelo botão ✠ ao lado do nome, sem abrir o NPC.
 - **👁 Prévia:** mostra a animação e toca o som só para você (também em Ferramentas → Sacrifícios e estigmas).
 - O estigma da Obsessão é do jogador e não tem animação, por ora.
+
+## Novidades da versão 1.11
+- **Sons dos estigmas refeitos:** cada um agora é um surto de poder: o ar é sugado por um instante, depois vem uma explosão (grave que afunda, estouro distorcido e rugido) e uma cauda própria de cada estigma.
+- **Animação mais rápida (≈2,5 s):** um anel de energia se fecha no centro e, em 0,3 s, o estigma explode na tela com clarão, onda de choque e brasas lançadas para fora, bem junto com o som.
+- **Habilidade do Estigma marcada na ficha do Hexatombe:** na extensão do Hexatombe, aba NPCs → ✎ na ficha, marque **✠ Estigma** na habilidade certa (e, se quiser, escolha o estigma; senão vale o do integrante na equipe). No Combate do Escudo, as habilidades do NPC ganham botões **▶ Usar**; a do Estigma aparece em vermelho com **✠ Usar**, e usar ela mostra o estigma para todos automaticamente. O que você escolher na caixa “✠ Habilidade do Estigma” do Escudo vale mais que a ficha.

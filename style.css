@@ -454,3 +454,10 @@ button.est:hover { background: #b0121f; box-shadow: 0 0 16px #e0141f99; }
 .estbtn:hover { background: #c8121f; box-shadow: 0 0 14px #ff2a35; }
 li.esthab { color: #ffc2c6; }
 li.esthab::marker { content: "✠ "; color: #ff3b45; }
+ul.habsuse { list-style: none; padding-left: 0; }
+ul.habsuse li { display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #ffffff10; }
+ul.habsuse li:last-child { border-bottom: 0; }
+ul.habsuse li.esthab { background: linear-gradient(90deg, #3a0a12, transparent); border-left: 2px solid #ff2a35; padding-left: 6px; border-radius: 4px; }
+ul.habsuse li.esthab::marker { content: none; }
+ul.habsuse li.esthab b { color: #ff6b73; }
+button.husar { flex: none; font-size: 11px; padding: 2px 8px; }

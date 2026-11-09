@@ -1,5 +1,5 @@
 import OBR from "https://cdn.jsdelivr.net/npm/@owlbear-rodeo/sdk@3.1.0/+esm";
-import { tocar, tocarUrl, pararAvulsos, laco, lacosAtivos, musica, setVolume, estado, aoMudarEstado, destravar, AMBIENTES } from "./sons.js?v=1.10.0";
+import { tocar, tocarUrl, pararAvulsos, laco, lacosAtivos, musica, setVolume, estado, aoMudarEstado, destravar, AMBIENTES } from "./sons.js?v=1.11.0";
 const VERSAO = "1.5";
 
 /* Caixa de som: um botãozinho no canto da tela de cada pessoa da sala.

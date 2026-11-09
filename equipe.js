@@ -6,7 +6,7 @@
    Hexatombe: PV, PE, Defesa, perícias, ataques, habilidades
    e uma pequena história). Números aproximados, para improvisar.
    ========================================================= */
-import { pick, sortear, chance, nomePessoa, DANO_HAB, CURA } from "./gerador.js?v=1.10.0";
+import { pick, sortear, chance, nomePessoa, DANO_HAB, CURA } from "./gerador.js?v=1.11.0";
 
 export const NEXS = [5, 10, 20, 35, 50, 65, 80, 99];
 const VD_DO_NEX = { 5: 10, 10: 10, 20: 20, 35: 40, 50: 60, 65: 80, 80: 100, 99: 120 };
